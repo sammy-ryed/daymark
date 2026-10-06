@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 import "./refinements.css";
+import "./controls.css";
 export const metadata: Metadata = {
   title: "Daymark | A little more progress",
   description:

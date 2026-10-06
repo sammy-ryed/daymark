@@ -55,6 +55,7 @@ const safeUser = (user: User) => ({
   fullName: String(user.user_metadata?.full_name ?? ""),
 });
 const cookieName = "project_session";
+const refreshCookieName = "project_refresh";
 const projectColumns =
   "id,owner_id,name,description,status,start_date,end_date,created_at,updated_at";
 const taskColumns =
@@ -141,6 +142,7 @@ export function createApp(config: Config) {
     rateLimit({
       windowMs: 15 * 60 * 1000,
       limit: 30,
+      skip: (req) => req.method === "GET",
       standardHeaders: "draft-8",
       legacyHeaders: false,
       message: {
@@ -155,11 +157,9 @@ export function createApp(config: Config) {
     user: User | null,
   ) => {
     if (!session || !user)
-      return res
-        .status(202)
-        .json({
-          message: "Check your email to confirm your account, then sign in.",
-        });
+      return res.status(202).json({
+        message: "Check your email to confirm your account, then sign in.",
+      });
     if (req.get("X-Project-Client") === "mobile")
       return res.json({
         user: safeUser(user),
@@ -169,6 +169,10 @@ export function createApp(config: Config) {
     res.cookie(cookieName, session.access_token, {
       ...cookieOptions,
       maxAge: session.expires_in * 1000,
+    });
+    res.cookie(refreshCookieName, session.refresh_token, {
+      ...cookieOptions,
+      maxAge: 30 * 24 * 60 * 60 * 1000,
     });
     return res.json({ user: safeUser(user) });
   };
@@ -197,10 +201,96 @@ export function createApp(config: Config) {
       );
     issue(req, res, data.session, data.user);
   });
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    const { email } = credentialsSchema.pick({ email: true }).parse(req.body);
+    const { error } = await client().auth.resetPasswordForEmail(email, {
+      redirectTo: `${config.webOrigin}/reset-password`,
+    });
+    if (error && error.status !== 400)
+      throw new HttpError(
+        error.status === 429 ? 429 : 502,
+        "Unable to send a reset link right now. Please try again later.",
+      );
+    res
+      .status(202)
+      .json({
+        message:
+          "If this email has an account, a password reset link is on its way. Check your inbox and spam folder.",
+      });
+  });
+  app.post("/api/auth/reset-password", async (req, res) => {
+    const input = z
+      .object({
+        accessToken: z.string().min(20).max(10000),
+        refreshToken: z.string().min(10).max(1000),
+        password: credentialsSchema.shape.password,
+      })
+      .strict()
+      .parse(req.body);
+    const auth = client().auth;
+    const { error: sessionError } = await auth.setSession({
+      access_token: input.accessToken,
+      refresh_token: input.refreshToken,
+    });
+    if (sessionError)
+      throw new HttpError(
+        400,
+        "This reset link has expired. Request a new link to continue.",
+      );
+    const { error } = await auth.updateUser({ password: input.password });
+    if (error)
+      throw new HttpError(
+        400,
+        "Unable to update your password. Choose a different password or request a new link.",
+      );
+    await auth.signOut({ scope: "global" });
+    res.clearCookie(cookieName, cookieOptions);
+    res.clearCookie(refreshCookieName, cookieOptions);
+    res.json({ message: "Password updated. Sign in with your new password." });
+  });
   app.use("/api", async (req, res, next) => {
-    const token =
+    let token =
       req.headers.authorization?.replace(/^Bearer\s+/i, "") ||
       req.cookies[cookieName];
+    // Refresh only cookie sessions. Bearer sessions remain controlled by the mobile client.
+    if (
+      !req.headers.authorization &&
+      req.cookies[refreshCookieName] &&
+      (!token ||
+        (() => {
+          try {
+            return (
+              JSON.parse(
+                Buffer.from(token.split(".")[1], "base64url").toString(),
+              ).exp <
+              Date.now() / 1000 + 30
+            );
+          } catch {
+            return true;
+          }
+        })())
+    ) {
+      const { data, error } = await client().auth.refreshSession({
+        refresh_token: req.cookies[refreshCookieName],
+      });
+      if (error || !data.session) {
+        res.clearCookie(cookieName, cookieOptions);
+        res.clearCookie(refreshCookieName, cookieOptions);
+        throw new HttpError(
+          401,
+          "Your session has expired. Please sign in again.",
+        );
+      }
+      token = data.session.access_token;
+      res.cookie(cookieName, token, {
+        ...cookieOptions,
+        maxAge: data.session.expires_in * 1000,
+      });
+      res.cookie(refreshCookieName, data.session.refresh_token, {
+        ...cookieOptions,
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+    }
     if (!token) throw new HttpError(401, "Please sign in to continue.");
     const db = client(token);
     const { data, error } = await db.auth.getUser(token);
@@ -217,10 +307,34 @@ export function createApp(config: Config) {
   app.get("/api/auth/me", (req, res) =>
     res.json(safeUser((req as AuthRequest).user)),
   );
+  app.patch("/api/auth/profile", async (req, res) => {
+    const { fullName } = registerSchema
+      .pick({ fullName: true })
+      .strict()
+      .parse(req.body);
+    // GoTrue's user endpoint accepts the verified user's JWT; no admin credential is used.
+    const response = await fetch(`${config.url}/auth/v1/user`, {
+      method: "PUT",
+      headers: {
+        apikey: config.key,
+        Authorization: `Bearer ${req.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ data: { full_name: fullName } }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok)
+      throw new HttpError(
+        502,
+        "Your profile could not be saved. Please try again.",
+      );
+    res.json(safeUser((await response.json()) as User));
+  });
   app.post("/api/auth/logout", async (req, res) => {
     const { db, token } = req as AuthRequest;
     const { error } = await db.auth.admin.signOut(token, "local");
     res.clearCookie(cookieName, cookieOptions);
+    res.clearCookie(refreshCookieName, cookieOptions);
     if (error)
       throw new HttpError(
         502,
@@ -243,6 +357,36 @@ export function createApp(config: Config) {
     );
   };
   const id = (req: Request) => z.uuid().parse(req.params.id);
+  app.get("/api/workspace", async (req, res) => {
+    // Read in pages so PostgREST's default row cap cannot silently hide work.
+    const readAll = async (table: "projects" | "tasks", columns: string) => {
+      const rows: unknown[] = [];
+      for (let offset = 0; ; offset += 500) {
+        let query = req.db
+          .from(table)
+          .select(columns)
+          .order("id")
+          .range(offset, offset + 499);
+        if (table === "projects") query = query.eq("owner_id", req.user.id);
+        const { data, error } = await query;
+        check(error);
+        rows.push(...(data ?? []));
+        if (!data || data.length < 500) return rows;
+      }
+    };
+    const [projects, tasks, result] = await Promise.all([
+      readAll("projects", projectColumns),
+      readAll("tasks", taskColumns),
+      req.db.rpc("dashboard_stats"),
+    ]);
+    check(result.error);
+    res.json({
+      user: safeUser(req.user),
+      projects,
+      tasks,
+      dashboard: result.data,
+    });
+  });
   const ownProject = async (req: AuthRequest, projectId: string) => {
     const { data, error } = await req.db
       .from("projects")
@@ -395,12 +539,10 @@ export function createApp(config: Config) {
   app.use(
     (error: unknown, _req: Request, res: Response, _next: NextFunction) => {
       if (error instanceof ZodError)
-        return res
-          .status(400)
-          .json({
-            message: error.issues[0]?.message ?? "Invalid input.",
-            fields: z.flattenError(error).fieldErrors,
-          });
+        return res.status(400).json({
+          message: error.issues[0]?.message ?? "Invalid input.",
+          fields: z.flattenError(error).fieldErrors,
+        });
       if (error instanceof HttpError)
         return res.status(error.status).json({ message: error.message });
       if (error instanceof SyntaxError)

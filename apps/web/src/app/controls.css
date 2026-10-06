@@ -1,0 +1,368 @@
+.select-wrap,
+.date-control {
+  display: block;
+  position: relative;
+  min-width: 0;
+  width: 100%;
+}
+.select-trigger,
+.date-trigger {
+  width: 100%;
+  min-height: 3rem;
+  justify-content: space-between;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: inherit;
+  font-weight: 400;
+}
+.select-trigger > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.select-trigger svg,
+.date-trigger svg {
+  flex-shrink: 0;
+}
+.select-menu {
+  z-index: 100;
+  min-width: var(--radix-select-trigger-width);
+  max-width: calc(100vw - 1.5rem);
+  max-height: min(22rem, var(--radix-select-content-available-height));
+  background: white;
+  border: 0.0625rem solid #dededb;
+  border-radius: 1rem;
+  padding: 0.375rem;
+  box-shadow: 0 0.75rem 2rem #19191914;
+  overflow: hidden;
+}
+.select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 2.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.625rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  outline: none;
+  overflow-wrap: anywhere;
+}
+.select-option[data-highlighted] {
+  background: #f2f2ee;
+}
+.select-option[data-state="checked"] {
+  background: #fff0ec;
+  color: #9f3526;
+}
+.select-scroll {
+  text-align: center;
+  padding: 0.375rem;
+  font-size: 0.75rem;
+  color: #666;
+}
+.inline-status .select-trigger {
+  min-height: 2.75rem;
+  font-size: 0.75rem;
+  padding: 0.5rem 0.625rem;
+}
+.calendar-popover {
+  z-index: 100;
+  background: white;
+  border: 0.0625rem solid #dededb;
+  border-radius: 1.25rem;
+  padding: 1rem;
+  box-shadow: 0 0.75rem 2rem #19191914;
+  width: 21.5rem;
+  max-width: calc(100vw - 1.5rem);
+  max-height: var(--radix-popover-content-available-height);
+  overflow: auto;
+}
+.calendar-popover .rdp-root {
+  --rdp-accent-color: #bd4936;
+  --rdp-accent-background-color: #fff0ec;
+  --rdp-day-width: 2.75rem;
+  --rdp-day-height: 2.75rem;
+  --rdp-day_button-width: 2.5rem;
+  --rdp-day_button-height: 2.5rem;
+  --rdp-selected-border: 0.125rem solid #bd4936;
+  --rdp-nav_button-width: 2.75rem;
+  --rdp-nav_button-height: 2.75rem;
+  font-family: inherit;
+}
+.calendar-popover .rdp-months,
+.calendar-popover .rdp-month {
+  width: 100%;
+}
+.calendar-popover .rdp-month_grid {
+  width: 100%;
+}
+.calendar-popover .rdp-day_button {
+  padding: 0;
+  min-height: 2.5rem;
+  margin: auto;
+  font-size: 0.875rem;
+}
+.calendar-popover .rdp-caption_label {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.calendar-popover .rdp-weekday {
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+.calendar-popover .rdp-selected .rdp-day_button {
+  background: #fff0ec;
+}
+.calendar-popover .rdp-button_previous,
+.calendar-popover .rdp-button_next {
+  padding: 0.5rem;
+}
+.date-shortcuts {
+  display: flex;
+  gap: 0.375rem;
+  margin-block: 0.75rem;
+  border-top: 0.0625rem solid #edede8;
+  padding-top: 0.75rem;
+}
+.date-shortcuts button {
+  flex: 1;
+  font-size: 0.75rem;
+  padding: 0.375rem;
+  border-radius: 0.625rem;
+}
+.date-entry {
+  font-size: 0.75rem;
+  gap: 0.375rem;
+}
+.date-entry input {
+  font-size: 1rem;
+  min-height: 2.75rem;
+}
+.calendar-close {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+dialog {
+  padding: 0;
+  overflow: visible;
+  max-height: calc(100dvh - 2rem);
+  width: min(35rem, calc(100vw - 2rem));
+}
+dialog .dialog-head {
+  padding: 1.5rem 1.5rem 1rem;
+  margin: 0;
+  border-bottom: 0.0625rem solid #edede8;
+}
+.dialog-body {
+  max-height: calc(100dvh - 9rem);
+  overflow: auto;
+  padding: 1.5rem;
+  border-radius: 0 0 2rem 2rem;
+  scrollbar-width: thin;
+  scrollbar-color: #c6c5bf transparent;
+}
+.dialog-body:has(.editor-form) {
+  padding: 0;
+  overflow: hidden;
+}
+.editor-form {
+  max-height: calc(100dvh - 9rem);
+  gap: 0;
+}
+.editor-fields {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #c6c5bf transparent;
+}
+.editor-form .form-actions {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 1rem 1.5rem;
+  border-top: 0.0625rem solid #edede8;
+  background: #fafaf8;
+  border-radius: 0 0 2rem 2rem;
+}
+.completion-button {
+  font-size: 0.6875rem;
+  padding: 0.5rem 0.625rem;
+  min-width: 6.25rem;
+  border-radius: 0.75rem;
+  white-space: nowrap;
+  color: #52534e;
+}
+.completion-button.checked {
+  color: #973b2c;
+  background: #fff0ec;
+  border-color: #ecc5bd;
+}
+.completion-button:hover {
+  border-color: #bd4936;
+  color: #9f3526;
+}
+.completion-button svg {
+  width: 1rem;
+  height: 1rem;
+}
+.focus-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+.board-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.board-card .completion-button {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  width: auto;
+  justify-self: start;
+}
+.board-card .task-main {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+.board-card .task-due {
+  grid-column: 1;
+  grid-row: 2;
+}
+.board-card .priority {
+  grid-column: 2;
+  grid-row: 2;
+}
+.board-card .inline-status {
+  grid-column: 1;
+  grid-row: 4;
+}
+.board-card .task-actions {
+  grid-column: 2;
+  grid-row: 4;
+}
+.profile-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 2rem;
+}
+.account-page {
+  max-width: 42rem;
+  margin: 3rem auto;
+  padding: 0 1rem;
+}
+.account-page h1 {
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  margin-block: 1rem;
+}
+.account-card {
+  background: #fafaf8;
+  border: 0.0625rem solid #e8e8e3;
+  border-radius: 2rem;
+  padding: 2rem;
+  margin-block: 1.5rem;
+}
+.account-card h2 {
+  font-family: Georgia, serif;
+  font-size: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+.account-card > p {
+  color: #64645e;
+  margin-bottom: 1.5rem;
+}
+.account-card .profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: #fff0ec;
+  color: #9f3526;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+.forgot-link {
+  align-self: end;
+  font-size: 0.8125rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+}
+@media (max-width: 44rem) {
+  dialog {
+    width: calc(100vw - 1rem);
+    max-height: calc(100dvh - 1rem);
+  }
+  dialog .dialog-head {
+    padding: 1rem;
+  }
+  .editor-fields {
+    padding: 1rem;
+  }
+  .editor-form .form-actions {
+    padding: 0.875rem 1rem;
+  }
+  .editor-form,
+  .dialog-body {
+    max-height: calc(100dvh - 7rem);
+  }
+  .task-row .completion-button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+  .task-row .task-main {
+    grid-column: 1 / -1;
+    margin-left: 0;
+  }
+  .task-row .task-due,
+  .task-row .inline-status {
+    margin-left: 0;
+  }
+  .task-row .inline-status {
+    min-width: 0;
+  }
+  .task-list .task-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .task-list .task-main {
+    grid-row: 1;
+  }
+  .task-list .completion-button {
+    grid-row: 3;
+  }
+  .focus-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .focus-row .completion-button {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+  .focus-row .task-main {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .focus-row > .small {
+    grid-column: 1;
+  }
+  .account-card {
+    padding: 1.25rem;
+  }
+  .calendar-popover {
+    padding: 0.75rem;
+  }
+  .calendar-popover .rdp-root {
+    --rdp-day-width: 2.375rem;
+    --rdp-day_button-width: 2.25rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .select-menu,
+  .calendar-popover {
+    animation: none;
+  }
+}

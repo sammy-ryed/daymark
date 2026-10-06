@@ -8,7 +8,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
         defaultOptions: {
           queries: {
             retry: false,
-            staleTime: 15000,
+            staleTime: 60_000,
+            gcTime: 10 * 60_000,
             refetchOnWindowFocus: true,
           },
         },

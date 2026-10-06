@@ -15,7 +15,13 @@ beforeAll(async () => {
 afterAll(() => server.close());
 describe("API boundary security", () => {
   it("rejects unauthenticated data access", async () => {
-    for (const path of ["/projects", "/tasks", "/dashboard"])
+    for (const path of [
+      "/projects",
+      "/tasks",
+      "/dashboard",
+      "/workspace",
+      "/auth/me",
+    ])
       expect((await fetch(base + path)).status).toBe(401);
   });
   it("rejects cross-site web writes before auth", async () => {
@@ -51,5 +57,46 @@ describe("API boundary security", () => {
     });
     expect(r.status).toBe(400);
     expect(await r.json()).toEqual({ message: "Invalid JSON request." });
+  });
+  it("validates recovery input before contacting Auth", async () => {
+    for (const [path, body] of [
+      ["forgot-password", { email: "invalid" }],
+      ["reset-password", { password: "short" }],
+    ]) {
+      const response = await fetch(`${base}/auth/${path}`, {
+        method: "POST",
+        headers: {
+          "X-Project-Client": "mobile",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      expect(response.status).toBe(400);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+    }
+  });
+  it("requires authentication for profile updates", async () => {
+    const response = await fetch(`${base}/auth/profile`, {
+      method: "PATCH",
+      headers: {
+        Origin: "http://localhost:3000",
+        "X-Project-Client": "web",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ fullName: "New name" }),
+    });
+    expect(response.status).toBe(401);
+  });
+  it("rejects recovery requests from an untrusted website", async () => {
+    const response = await fetch(`${base}/auth/forgot-password`, {
+      method: "POST",
+      headers: {
+        Origin: "https://untrusted.example",
+        "X-Project-Client": "web",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email: "person@example.test" }),
+    });
+    expect(response.status).toBe(403);
   });
 });

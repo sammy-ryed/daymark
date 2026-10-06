@@ -1,4 +1,5 @@
 "use client";
+import { Select, DatePicker } from "./form-controls";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -51,6 +52,12 @@ import {
   type TaskSort,
 } from "@/lib/task-view";
 
+type WorkspaceData = {
+  user: Profile;
+  projects: Project[];
+  tasks: Task[];
+  dashboard: Dashboard;
+};
 const dateLabel = (v: string) =>
   new Date(`${v.slice(0, 10)}T12:00:00`).toLocaleDateString("en", {
     month: "short",
@@ -216,6 +223,11 @@ function Auth({ register }: { register: boolean }) {
                 </button>
               </span>
             </label>
+            {!register && (
+              <Link href="/forgot-password" className="forgot-link">
+                Forgot password?
+              </Link>
+            )}
             {error && <Message>{error}</Message>}
             {notice && (
               <p role="status" className="notice">
@@ -249,7 +261,7 @@ function Auth({ register }: { register: boolean }) {
 }
 
 export function Workspace() {
-  const path = usePathname();
+  const path = usePathname() ?? "/dashboard";
   const router = useRouter();
   const qc = useQueryClient();
   const auth = path === "/login" || path === "/register";
@@ -275,11 +287,12 @@ export function Workspace() {
   } | null>(null);
   const [actionError, setActionError] = useState("");
   const [acting, setActing] = useState(false);
-  const me = useQuery({
-    queryKey: ["me"],
-    queryFn: () => api<Profile>("/auth/me"),
+  const workspace = useQuery({
+    queryKey: ["workspace"],
+    queryFn: () => api<WorkspaceData>("/workspace"),
     enabled: !auth,
   });
+  const me = { ...workspace, data: workspace.data?.user };
   useEffect(() => {
     const expired = () => {
       qc.clear();
@@ -347,22 +360,9 @@ export function Workspace() {
     window.addEventListener("keydown", shortcut);
     return () => window.removeEventListener("keydown", shortcut);
   }, [auth, path, modal, deleteTarget]);
-  const enabled = !auth && Boolean(me.data);
-  const projects = useQuery({
-    queryKey: ["projects"],
-    queryFn: () => api<Project[]>("/projects"),
-    enabled,
-  });
-  const tasks = useQuery({
-    queryKey: ["tasks"],
-    queryFn: () => api<Task[]>("/tasks"),
-    enabled,
-  });
-  const stats = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: () => api<Dashboard>("/dashboard"),
-    enabled,
-  });
+  const projects = { ...workspace, data: workspace.data?.projects };
+  const tasks = { ...workspace, data: workspace.data?.tasks };
+  const stats = { ...workspace, data: workspace.data?.dashboard };
   const selectedId = path.startsWith("/projects/")
     ? path.split("/")[2]
     : undefined;
@@ -396,12 +396,7 @@ export function Workspace() {
     ),
     sort,
   );
-  const reload = () =>
-    Promise.all([
-      qc.invalidateQueries({ queryKey: ["projects"] }),
-      qc.invalidateQueries({ queryKey: ["tasks"] }),
-      qc.invalidateQueries({ queryKey: ["dashboard"] }),
-    ]);
+  const reload = () => qc.invalidateQueries({ queryKey: ["workspace"] });
   async function logout() {
     setActing(true);
     try {
@@ -422,6 +417,28 @@ export function Workspace() {
   }
   async function changeStatus(task: Task, nextStatus: Task["status"]) {
     const focusedControl = document.activeElement?.id;
+    await qc.cancelQueries({ queryKey: ["workspace"] });
+    const previous = qc.getQueryData<WorkspaceData>(["workspace"]);
+    qc.setQueryData<WorkspaceData>(["workspace"], (old) => {
+      if (!old) return old;
+      const difference =
+        Number(nextStatus === "Completed") -
+        Number(task.status === "Completed");
+      return {
+        ...old,
+        tasks: old.tasks.map((t) =>
+          t.id === task.id ? { ...t, status: nextStatus } : t,
+        ),
+        dashboard: {
+          ...old.dashboard,
+          completedTasks: old.dashboard.completedTasks + difference,
+          pendingTasks:
+            old.dashboard.pendingTasks +
+            Number(nextStatus === "Pending") -
+            Number(task.status === "Pending"),
+        },
+      };
+    });
     setActing(true);
     setActionError("");
     try {
@@ -432,7 +449,7 @@ export function Workspace() {
           status: nextStatus,
         }),
       });
-      await reload();
+      void reload();
       if (focusedControl === `task-status-${task.id}`) {
         requestAnimationFrame(() =>
           document.getElementById(focusedControl)?.focus(),
@@ -444,6 +461,7 @@ export function Workspace() {
           : `Task moved to ${nextStatus.toLowerCase()}.`,
       );
     } catch (e) {
+      qc.setQueryData(["workspace"], previous);
       setActionError((e as Error).message);
     } finally {
       setActing(false);
@@ -560,9 +578,16 @@ export function Workspace() {
           ))}
         </nav>
         <div className="user-tools">
-          <span className="avatar" title={me.data?.fullName}>
-            {me.data?.fullName?.slice(0, 1).toUpperCase() || "P"}
-          </span>
+          <Link
+            href="/profile"
+            className="profile-link"
+            aria-label="Edit profile"
+          >
+            <span className="avatar" title={me.data?.fullName}>
+              {me.data?.fullName?.slice(0, 1).toUpperCase() || "P"}
+            </span>
+            <span className="small">Profile</span>
+          </Link>
           <button
             className="icon-button"
             title="Sign out"
@@ -785,7 +810,7 @@ export function Workspace() {
                     <label className="select-filter">
                       <SlidersHorizontal size={16} />
                       <span className="sr-only">Filter by status</span>
-                      <select
+                      <Select
                         value={status}
                         onChange={(e) => setStatus(e.target.value)}
                       >
@@ -795,12 +820,12 @@ export function Workspace() {
                             <option key={s}>{s}</option>
                           ),
                         )}
-                      </select>
+                      </Select>
                     </label>
                     {taskView && (
                       <label className="select-filter">
                         <span className="sr-only">Filter by priority</span>
-                        <select
+                        <Select
                           value={priority}
                           onChange={(e) => setPriority(e.target.value)}
                         >
@@ -808,13 +833,13 @@ export function Workspace() {
                           {priorities.map((p) => (
                             <option key={p}>{p}</option>
                           ))}
-                        </select>
+                        </Select>
                       </label>
                     )}
                     {taskView && (
                       <label className="select-filter">
                         <span className="sr-only">Filter by due date</span>
-                        <select
+                        <Select
                           value={due}
                           onChange={(e) =>
                             chooseDue(e.target.value as DueFilter)
@@ -824,13 +849,13 @@ export function Workspace() {
                           <option value="overdue">Overdue</option>
                           <option value="today">Due today</option>
                           <option value="week">Next 7 days</option>
-                        </select>
+                        </Select>
                       </label>
                     )}
                     {taskView && !selectedId && (
                       <label className="select-filter">
                         <span className="sr-only">Filter by project</span>
-                        <select
+                        <Select
                           value={projectFilter}
                           onChange={(e) => setProjectFilter(e.target.value)}
                         >
@@ -840,12 +865,12 @@ export function Workspace() {
                               {p.name}
                             </option>
                           ))}
-                        </select>
+                        </Select>
                       </label>
                     )}
                     <label className="select-filter">
                       <span className="sr-only">Sort order</span>
-                      <select
+                      <Select
                         value={sort}
                         onChange={(e) => setSort(e.target.value as TaskSort)}
                       >
@@ -853,7 +878,7 @@ export function Workspace() {
                         {taskView && <option value="priority">Priority</option>}
                         <option value="newest">Newest first</option>
                         <option value="name">Name A to Z</option>
-                      </select>
+                      </Select>
                     </label>
                     {(search || status || priority || due || projectFilter) && (
                       <button
@@ -1047,7 +1072,7 @@ export function Workspace() {
           defaultStatus={modal.status}
           close={() => setModal(null)}
           saved={async () => {
-            await reload();
+            void reload();
             setToast(
               `${modal.kind === "project" ? "Project" : "Task"} ${modal.item ? "updated" : "created"}.`,
             );
@@ -1117,7 +1142,7 @@ function Dialog({
           <X size={20} />
         </button>
       </div>
-      {children}
+      <div className="dialog-body">{children}</div>
     </dialog>
   );
 }
@@ -1181,111 +1206,113 @@ function Editor({
           body="Create a project before adding its tasks."
         />
       ) : (
-        <form onSubmit={submit}>
-          <label>
-            {kind === "project" ? "Project" : "Task"} name
-            <input
-              name="name"
-              defaultValue={item?.name}
-              required
-              maxLength={120}
-              autoFocus
-              placeholder="Give it a name"
-            />
-          </label>
-          <label>
-            Description
-            <textarea
-              name="description"
-              defaultValue={item?.description}
-              rows={3}
-              maxLength={4000}
-              placeholder="A little context goes a long way."
-            />
-          </label>
-          {kind === "task" && !item && (
+        <form onSubmit={submit} className="editor-form">
+          <div className="editor-fields">
             <label>
-              Project
-              <select
-                name="project_id"
-                defaultValue={projectId ?? projects[0]?.id}
-              >
-                {projects.map((p) => (
-                  <option value={p.id} key={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+              {kind === "project" ? "Project" : "Task"} name
+              <input
+                name="name"
+                defaultValue={item?.name}
+                required
+                maxLength={120}
+                autoFocus
+                placeholder="Give it a name"
+              />
             </label>
-          )}
-          <div className="form-grid">
             <label>
-              Status
-              <select
-                name="status"
-                defaultValue={
-                  item?.status ??
-                  (kind === "project"
-                    ? "Not Started"
-                    : (defaultStatus ?? "Pending"))
-                }
-              >
-                {(kind === "project" ? projectStatuses : taskStatuses).map(
-                  (s) => (
-                    <option key={s}>{s}</option>
-                  ),
-                )}
-              </select>
+              Description
+              <textarea
+                name="description"
+                defaultValue={item?.description}
+                rows={3}
+                maxLength={4000}
+                placeholder="A little context goes a long way."
+              />
             </label>
-            {kind === "task" && (
+            {kind === "task" && !item && (
               <label>
-                Priority
-                <select name="priority" defaultValue={t?.priority ?? "Medium"}>
-                  {priorities.map((v) => (
-                    <option key={v}>{v}</option>
+                Project
+                <Select
+                  name="project_id"
+                  defaultValue={projectId ?? projects[0]?.id}
+                >
+                  {projects.map((p) => (
+                    <option value={p.id} key={p.id}>
+                      {p.name}
+                    </option>
                   ))}
-                </select>
+                </Select>
               </label>
             )}
-          </div>
-          <div className="form-grid">
-            {kind === "project" ? (
-              <>
-                <label>
-                  Start date
-                  <input
-                    type="date"
-                    name="start_date"
-                    defaultValue={p?.start_date ?? today}
-                    required
-                  />
-                </label>
-                <label>
-                  End date
-                  <input
-                    type="date"
-                    name="end_date"
-                    defaultValue={p?.end_date ?? today}
-                    required
-                  />
-                </label>
-              </>
-            ) : (
+            <div className="form-grid">
               <label>
-                Due date
-                <input
-                  type="date"
-                  name="due_date"
-                  defaultValue={t?.due_date ?? today}
-                  required
-                />
+                Status
+                <Select
+                  name="status"
+                  defaultValue={
+                    item?.status ??
+                    (kind === "project"
+                      ? "Not Started"
+                      : (defaultStatus ?? "Pending"))
+                  }
+                >
+                  {(kind === "project" ? projectStatuses : taskStatuses).map(
+                    (s) => (
+                      <option key={s}>{s}</option>
+                    ),
+                  )}
+                </Select>
               </label>
+              {kind === "task" && (
+                <label>
+                  Priority
+                  <Select
+                    name="priority"
+                    defaultValue={t?.priority ?? "Medium"}
+                  >
+                    {priorities.map((v) => (
+                      <option key={v}>{v}</option>
+                    ))}
+                  </Select>
+                </label>
+              )}
+            </div>
+            <div className="form-grid">
+              {kind === "project" ? (
+                <>
+                  <label>
+                    Start date
+                    <DatePicker
+                      name="start_date"
+                      defaultValue={p?.start_date ?? today}
+                      required
+                    />
+                  </label>
+                  <label>
+                    End date
+                    <DatePicker
+                      name="end_date"
+                      defaultValue={p?.end_date ?? today}
+                      required
+                    />
+                  </label>
+                </>
+              ) : (
+                <label>
+                  Due date
+                  <DatePicker
+                    name="due_date"
+                    defaultValue={t?.due_date ?? today}
+                    required
+                  />
+                </label>
+              )}
+            </div>
+            {item && (
+              <p className="small">Created {dateLabel(item.created_at)}</p>
             )}
+            {error && <Message>{error}</Message>}
           </div>
-          {item && (
-            <p className="small">Created {dateLabel(item.created_at)}</p>
-          )}
-          {error && <Message>{error}</Message>}
           <div className="form-actions">
             <button type="button" disabled={busy} onClick={close}>
               Cancel

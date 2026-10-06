@@ -40,12 +40,12 @@ export function FocusPanel({
           next.map((task) => (
             <div className="focus-row" key={task.id}>
               <button
-                className="check-button"
+                className="completion-button"
                 disabled={busy}
                 onClick={() => complete(task)}
                 aria-label={`Complete ${task.name}`}
               >
-                <Check size={15} />
+                <Check size={15} /><span>Mark done</span>
               </button>
               <button className="task-main" onClick={() => edit(task)}>
                 <strong>{task.name}</strong>

@@ -1,4 +1,5 @@
 "use client";
+import { Select, DatePicker } from "./form-controls";
 import {
   Check,
   MoreHorizontal,
@@ -80,12 +81,14 @@ function TaskItem({
       className={`task-row ${view === "board" ? "board-card" : ""} ${done ? "task-done" : ""}`}
     >
       <button
-        className={`check-button ${done ? "checked" : ""}`}
+        className={`completion-button ${done ? "checked" : ""}`}
+        aria-pressed={done}
         aria-label={`${done ? "Reopen" : "Complete"} ${task.name}`}
         disabled={busy}
         onClick={() => changeStatus(task, done ? "Pending" : "Completed")}
       >
-        {done && <Check size={16} />}
+        <Check size={16} />
+        <span>{done ? "Completed" : "Mark done"}</span>
       </button>
       <button className="task-main" onClick={() => edit(task)}>
         <strong>{task.name}</strong>
@@ -105,7 +108,7 @@ function TaskItem({
       </span>
       <label className="inline-status">
         <span className="sr-only">Status for {task.name}</span>
-        <select
+        <Select
           id={`task-status-${task.id}`}
           value={task.status}
           disabled={busy}
@@ -114,7 +117,7 @@ function TaskItem({
           {taskStatuses.map((s) => (
             <option key={s}>{s}</option>
           ))}
-        </select>
+        </Select>
       </label>
       <div className="task-actions">
         <button
