@@ -45,7 +45,8 @@ export function FocusPanel({
                 onClick={() => complete(task)}
                 aria-label={`Complete ${task.name}`}
               >
-                <Check size={15} /><span>Mark done</span>
+                <Check size={15} />
+                <span>Mark done</span>
               </button>
               <button className="task-main" onClick={() => edit(task)}>
                 <strong>{task.name}</strong>
@@ -68,14 +69,12 @@ export function FocusPanel({
         ) : (
           <div className="focus-empty">
             <h3>
-              {tasks.length
-                ? "All caught up."
-                : "Give your day a starting point."}
+              {tasks.length ? "All caught up." : "Your ambition is buffering."}
             </h3>
             <p>
               {tasks.length
-                ? "Every task is complete. Ready for your next idea?"
-                : "Create a project, add a task, and take the first step."}
+                ? "Your to-do list has nothing on you. Literally."
+                : "Add your first task. Thinking about doing it has had a very good run."}
             </p>
             <button onClick={create}>
               Plan your next step <ArrowRight size={16} />

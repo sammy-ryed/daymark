@@ -52,7 +52,7 @@ export default function Home() {
       <SafeAreaView style={s.screen}>
         <View style={s.content}>
           <ActivityIndicator color={colors.ink} />
-          <Text>Opening your workspace…</Text>
+          <Text>Convincing your tasks to form an orderly queue…</Text>
         </View>
       </SafeAreaView>
     );
@@ -191,6 +191,7 @@ function Work() {
   const [stats, setStats] = useState<Dashboard | null>(null);
   const [selected, setSelected] = useState<Project | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -265,6 +266,11 @@ function Work() {
     });
     return () => back.remove();
   }, [tab, selected]);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(""), 5000);
+    return () => clearTimeout(timer);
+  }, [notice]);
   const taskView = tab === "Tasks" || Boolean(selected);
   async function complete(t: Task) {
     setBusy(true);
@@ -283,6 +289,11 @@ function Work() {
           status: t.status === "Completed" ? "Pending" : "Completed",
         }),
       });
+      setNotice(
+        nextStatus === "Completed"
+          ? "Task completed. Future you just cancelled a complaint."
+          : "Task reopened. The sequel nobody saw coming.",
+      );
       await load();
     } catch (e) {
       setTasks(previous);
@@ -353,11 +364,16 @@ function Work() {
             (tab === "Overview"
               ? `Welcome back, ${user?.fullName.split(" ")[0] || "there"}.`
               : tab === "Projects"
-                ? "Make room for your next idea."
+                ? "The committee in your head has talked enough."
                 : tab === "Tasks"
-                  ? "One small step at a time."
+                  ? "Big ambitions. Manageable little checkboxes."
                   : "Make Daymark yours.")}
         </Text>
+        {notice ? (
+          <Text accessibilityLiveRegion="polite" style={s.subtitle}>
+            {notice}
+          </Text>
+        ) : null}
         {error ? (
           <>
             <Text style={s.error} accessibilityRole="alert">
@@ -420,7 +436,7 @@ function Work() {
               <Card>
                 <Text style={s.itemTitle}>A little breathing room.</Text>
                 <Text style={s.subtitle}>
-                  You're all caught up. Start a task when you're ready.
+                  Your to-do list has nothing on you. Literally.
                 </Text>
               </Card>
             )}
@@ -576,7 +592,7 @@ function Work() {
             )}
             {taskView && !shownTasks.length && !refreshing && (
               <Text style={s.subtitle}>
-                No tasks here yet. Add one or adjust your filters.
+                Your tasks are playing hide-and-seek. Add one or clear a filter.
               </Text>
             )}
             {!taskView &&
@@ -586,7 +602,8 @@ function Work() {
                   (!status || p.status === status),
               ).length && (
                 <Text style={s.subtitle}>
-                  No projects match. Create a project or clear your filters.
+                  Even our search party found nothing. Create a project or clear
+                  your filters.
                 </Text>
               )}
           </>

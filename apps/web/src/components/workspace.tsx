@@ -458,7 +458,7 @@ export function Workspace() {
       }
       setToast(
         nextStatus === "Completed"
-          ? "Task completed. One step forward."
+          ? "Task completed. Future you just cancelled a complaint."
           : `Task moved to ${nextStatus.toLowerCase()}.`,
       );
     } catch (e) {
@@ -533,7 +533,7 @@ export function Workspace() {
     return (
       <main className="empty" aria-busy="true">
         <span className="brand-mark">d.</span>
-        <p>Opening your workspace…</p>
+        <p>Convincing your tasks to form an orderly queue…</p>
       </main>
     );
   if (me.error)
@@ -632,7 +632,7 @@ export function Workspace() {
               <p>
                 {selected?.description ||
                   (overview
-                    ? `Welcome back${me.data?.fullName ? ", " + me.data.fullName.split(" ")[0] : ""}. Make room for what matters.`
+                    ? `Welcome back${me.data?.fullName ? ", " + me.data.fullName.split(" ")[0] : ""}. Your browser tabs have requested adult supervision.`
                     : taskView
                       ? "Small steps. Meaningful progress."
                       : "From the first idea to the final detail.")}
@@ -922,13 +922,13 @@ export function Workspace() {
                         title={
                           search || status || priority || due || projectFilter
                             ? "No tasks match this view."
-                            : "Your next step starts here."
+                            : "Suspiciously peaceful in here."
                         }
                         body={
                           search || status || priority || due || projectFilter
-                            ? "Try a different filter, or clear them to see every task."
+                            ? "Your tasks are playing hide-and-seek. Clear a filter to find them."
                             : allProjects.length
-                              ? "Add a task, set a deadline, and keep your work moving."
+                              ? "Add a task. Give that vague sense of responsibility a name."
                               : "Create a project to start organizing your tasks."
                         }
                         action={
@@ -1008,12 +1008,12 @@ export function Workspace() {
                         title={
                           search || status
                             ? "Nothing here yet."
-                            : "Good work starts with an idea."
+                            : "Big plans. Currently invisible."
                         }
                         body={
                           search || status
-                            ? "Try a different search or status."
-                            : "Create your first project. Break it into tasks. Make it happen."
+                            ? "Even our search party found nothing. Try another search or status."
+                            : "Create a project. The committee in your head has talked enough."
                         }
                         action={
                           <button
