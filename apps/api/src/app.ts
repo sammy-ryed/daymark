@@ -1,3 +1,4 @@
+import { requestQuery } from "./request-query";
 import express, {
   type Request,
   type Response,
@@ -401,7 +402,7 @@ export function createApp(config: Config) {
   };
   app.get("/api/projects", async (req, res) => {
     const r = req as AuthRequest;
-    const f = projectFilterSchema.parse(req.query);
+    const f = projectFilterSchema.parse(requestQuery(req.url));
     let query = r.db
       .from("projects")
       .select(projectColumns)
@@ -466,7 +467,7 @@ export function createApp(config: Config) {
   });
   app.get("/api/tasks", async (req, res) => {
     const r = req as AuthRequest;
-    const f = taskFilterSchema.parse(req.query);
+    const f = taskFilterSchema.parse(requestQuery(req.url));
     let query = r.db
       .from("tasks")
       .select(taskColumns)

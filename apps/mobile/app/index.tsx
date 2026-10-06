@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
+  useWindowDimensions,
   Alert,
   AppState,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   RefreshControl,
   ScrollView,
@@ -13,9 +14,22 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSession } from "../src/session";
-import { Button, Card, Choices, Field, s, colors } from "../src/ui";
+import {
+  Button,
+  Card,
+  Choices,
+  Field,
+  Brand,
+  DateField,
+  Sheet,
+  localDate,
+  rem,
+  s,
+  colors,
+} from "../src/ui";
 import {
   registerSchema,
+  projectSchema,
   credentialsSchema,
   taskSchema,
   createTaskSchema,
@@ -26,6 +40,7 @@ import {
   type Project,
   type Task,
   type Dashboard,
+  type Profile,
 } from "@project/contracts";
 
 export default function Home() {
@@ -84,7 +99,7 @@ function Auth() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={s.content}
         >
-          <Text style={s.eyebrow}>DAYMARK</Text>
+          <Brand />
           <Text style={[s.title, { fontSize: 52 }]}>
             Your work.{`\n`}In focus
             <Text style={{ color: colors.coral }}>.</Text>
@@ -135,6 +150,21 @@ function Auth() {
             >
               {register ? "Already registered? Sign in" : "Create an account"}
             </Button>
+            {!register && (
+              <Button
+                onPress={() =>
+                  Linking.openURL(
+                    "https://daymark-by-sammy.vercel.app/forgot-password",
+                  ).catch(() =>
+                    setError(
+                      "Could not open your browser. Visit the Daymark website to reset your password.",
+                    ),
+                  )
+                }
+              >
+                Forgot password?
+              </Button>
+            )}
             {message && <Button onPress={retry}>Retry connection</Button>}
           </Card>
         </ScrollView>
@@ -144,6 +174,14 @@ function Auth() {
 }
 function Work() {
   const { user, api, logout } = useSession();
+  const { width, fontScale } = useWindowDimensions();
+  const lastLoaded = useRef(0);
+  const loadingRequest = useRef(false);
+  const [projectEditor, setProjectEditor] = useState<{
+    project?: Project;
+  } | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(30);
   const [tab, setTab] = useState("Overview");
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -156,14 +194,25 @@ function Work() {
   const [priority, setPriority] = useState("");
   const [editor, setEditor] = useState<{ task?: Task } | null>(null);
   const [busy, setBusy] = useState(false);
+  useEffect(
+    () => setVisibleCount(30),
+    [tab, selected?.id, search, status, priority],
+  );
   const load = useCallback(async () => {
+    if (loadingRequest.current) return;
+    loadingRequest.current = true;
     setRefreshing(true);
     try {
-      const [p, t, d] = await Promise.all([
-        api<Project[]>("/projects"),
-        api<Task[]>("/tasks"),
-        api<Dashboard>("/dashboard"),
-      ]);
+      const {
+        projects: p,
+        tasks: t,
+        dashboard: d,
+      } = await api<{
+        projects: Project[];
+        tasks: Task[];
+        dashboard: Dashboard;
+      }>("/workspace");
+      lastLoaded.current = Date.now();
       setProjects(p);
       setTasks(t);
       setStats(d);
@@ -174,18 +223,21 @@ function Work() {
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      loadingRequest.current = false;
       setRefreshing(false);
     }
   }, [api]);
   useEffect(() => {
     void load();
     const listener = AppState.addEventListener("change", (state) => {
-      if (state === "active") void load();
+      if (state === "active" && Date.now() - lastLoaded.current > 60000)
+        void load();
     });
     return () => listener.remove();
   }, [load]);
   const go = (value: string) => {
     setTab(value);
+    setFiltersOpen(false);
     setSelected(null);
     setSearch("");
     setStatus("");
@@ -194,6 +246,13 @@ function Work() {
   const taskView = tab === "Tasks" || Boolean(selected);
   async function complete(t: Task) {
     setBusy(true);
+    const previous = tasks;
+    const nextStatus = t.status === "Completed" ? "Pending" : "Completed";
+    setTasks((items) =>
+      items.map((item) =>
+        item.id === t.id ? { ...item, status: nextStatus } : item,
+      ),
+    );
     try {
       await api(`/tasks/${t.id}`, {
         method: "PUT",
@@ -204,6 +263,7 @@ function Work() {
       });
       await load();
     } catch (e) {
+      setTasks(previous);
       setError((e as Error).message);
     } finally {
       setBusy(false);
@@ -240,12 +300,12 @@ function Work() {
           { padding: 16, borderBottomWidth: 1, borderBottomColor: colors.line },
         ]}
       >
-        <Text style={{ fontSize: 25, fontWeight: "700" }}>
-          p<Text style={{ color: colors.coral }}>m</Text>
-        </Text>
-        <Text style={s.eyebrow}>PERSONAL WORKSPACE</Text>
+        <Brand />
+        <Text style={s.small}>Your workspace</Text>
       </View>
       <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={s.content}
         refreshControl={
           <RefreshControl
@@ -268,7 +328,13 @@ function Work() {
         <Text style={s.title}>{selected?.name ?? `${tab}.`}</Text>
         <Text style={s.subtitle}>
           {selected?.description ??
-            `Welcome back, ${user?.fullName.split(" ")[0] ?? "there"}.`}
+            (tab === "Overview"
+              ? `Welcome back, ${user?.fullName.split(" ")[0] || "there"}.`
+              : tab === "Projects"
+                ? "Make room for your next idea."
+                : tab === "Tasks"
+                  ? "One small step at a time."
+                  : "Make Daymark yours.")}
         </Text>
         {error ? (
           <>
@@ -280,35 +346,76 @@ function Work() {
         ) : null}
         {tab === "Overview" && (
           <>
-            {[
-              ["Total Projects", stats?.totalProjects],
-              ["Total Tasks", stats?.totalTasks],
-              ["Completed Tasks", stats?.completedTasks],
-              ["Pending Tasks", stats?.pendingTasks],
-              ["Projects In Progress", stats?.projectsInProgress],
-            ].map(([name, value]) => (
-              <Card key={String(name)}>
-                <View style={s.row}>
-                  <Text>{name}</Text>
-                  <Text style={s.title}>{value ?? "..."}</Text>
+            <View style={s.wrap}>
+              {[
+                ["Projects", stats?.totalProjects],
+                [
+                  "Open tasks",
+                  tasks.filter((t) => t.status !== "Completed").length,
+                ],
+                ["Completed", stats?.completedTasks],
+                ["In progress", stats?.projectsInProgress],
+              ].map(([label, value]) => (
+                <View
+                  key={String(label)}
+                  style={[
+                    s.metric,
+                    (width < 350 || fontScale > 1.3) && { flexBasis: "100%" },
+                  ]}
+                >
+                  <Text style={s.small}>{label}</Text>
+                  <Text style={s.metricNumber}>{stats ? value : "..."}</Text>
                 </View>
+              ))}
+            </View>
+            <View style={s.row}>
+              <Text style={s.itemTitle}>Up next</Text>
+              <Button onPress={() => go("Tasks")}>All tasks</Button>
+            </View>
+            {tasks
+              .filter((t) => t.status !== "Completed")
+              .sort((a, b) => a.due_date.localeCompare(b.due_date))
+              .slice(0, 3)
+              .map((t) => (
+                <Card key={t.id}>
+                  <Text style={s.eyebrow}>
+                    {t.due_date < localDate()
+                      ? "OVERDUE"
+                      : t.due_date === localDate()
+                        ? "DUE TODAY"
+                        : "COMING UP"}
+                  </Text>
+                  <Text style={s.itemTitle}>{t.name}</Text>
+                  <Text style={s.small}>
+                    {t.projects?.name} · {t.due_date}
+                  </Text>
+                  <Button primary disabled={busy} onPress={() => complete(t)}>
+                    Mark done
+                  </Button>
+                </Card>
+              ))}
+            {stats && !tasks.some((t) => t.status !== "Completed") && (
+              <Card>
+                <Text style={s.itemTitle}>A little breathing room.</Text>
+                <Text style={s.subtitle}>
+                  You're all caught up. Start a task when you're ready.
+                </Text>
               </Card>
-            ))}
-            <Button primary onPress={() => go("Projects")}>
-              Explore your projects ↗
-            </Button>
+            )}
+            <View style={s.wrap}>
+              <Button
+                primary
+                onPress={() =>
+                  projects.length ? setEditor({}) : setProjectEditor({})
+                }
+              >
+                {projects.length ? "New task" : "Create first project"}
+              </Button>
+              <Button onPress={() => go("Projects")}>View projects</Button>
+            </View>
           </>
         )}
-        {tab === "Account" && (
-          <Card>
-            <Text style={s.itemTitle}>{user?.fullName}</Text>
-            <Text>{user?.email}</Text>
-            <Text style={s.small}>
-              The same account connects your web and mobile workspace.
-            </Text>
-            <Button onPress={logout}>Sign out</Button>
-          </Card>
-        )}
+        {tab === "Account" && <Account />}
         {(tab === "Projects" || tab === "Tasks") && (
           <>
             <Field
@@ -317,28 +424,60 @@ function Work() {
               onChangeText={setSearch}
               placeholder="Find something…"
             />
-            <Choices
-              label="Status"
-              values={["", ...(taskView ? taskStatuses : projectStatuses)]}
-              value={status}
-              onChange={setStatus}
-            />
+            <Button onPress={() => setFiltersOpen(!filtersOpen)}>
+              {filtersOpen
+                ? "Hide filters"
+                : `Filters${status || priority ? " (active)" : ""}`}
+            </Button>
+            {filtersOpen && (status || priority) && (
+              <Button
+                onPress={() => {
+                  setStatus("");
+                  setPriority("");
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+            {filtersOpen && (
+              <Choices
+                label="Status"
+                values={["", ...(taskView ? taskStatuses : projectStatuses)]}
+                value={status}
+                onChange={setStatus}
+              />
+            )}
             {taskView && (
               <>
-                <Choices
-                  label="Priority"
-                  values={["", ...priorities]}
-                  value={priority}
-                  onChange={setPriority}
-                />
-                <Button primary onPress={() => setEditor({})}>
+                {filtersOpen && (
+                  <Choices
+                    label="Priority"
+                    values={["", ...priorities]}
+                    value={priority}
+                    onChange={setPriority}
+                  />
+                )}
+                <Button
+                  primary
+                  onPress={() =>
+                    projects.length ? setEditor({}) : setProjectEditor({})
+                  }
+                >
                   ＋ New task
                 </Button>
               </>
             )}
+            {!taskView && (
+              <Button primary onPress={() => setProjectEditor({})}>
+                New project
+              </Button>
+            )}
             {selected && (
               <Card>
                 <Text>{selected.status}</Text>
+                <Button onPress={() => setProjectEditor({ project: selected })}>
+                  Edit project
+                </Button>
                 <Text style={s.small}>
                   {selected.start_date} to {selected.end_date}
                 </Text>
@@ -348,7 +487,7 @@ function Work() {
               </Card>
             )}
             {taskView
-              ? shownTasks.map((t) => (
+              ? shownTasks.slice(0, visibleCount).map((t) => (
                   <Card key={t.id}>
                     <Text style={s.itemTitle}>{t.name}</Text>
                     <Text style={s.subtitle}>{t.description}</Text>
@@ -359,8 +498,12 @@ function Work() {
                       {t.status} / {t.priority} priority
                     </Text>
                     <View style={s.wrap}>
-                      <Button disabled={busy} onPress={() => complete(t)}>
-                        {t.status === "Completed" ? "Reopen" : "Complete"}
+                      <Button
+                        primary={t.status !== "Completed"}
+                        disabled={busy}
+                        onPress={() => complete(t)}
+                      >
+                        {t.status === "Completed" ? "Reopen task" : "Mark done"}
                       </Button>
                       <Button onPress={() => setEditor({ task: t })}>
                         Edit
@@ -377,12 +520,16 @@ function Work() {
                       p.name.toLowerCase().includes(search.toLowerCase()) &&
                       (!status || p.status === status),
                   )
+                  .slice(0, visibleCount)
                   .map((p) => (
                     <Card key={p.id}>
                       <Text style={s.eyebrow}>{p.status.toUpperCase()}</Text>
                       <Text style={s.itemTitle}>{p.name}</Text>
                       <Text style={s.subtitle}>{p.description}</Text>
                       <Text style={s.small}>Due {p.end_date}</Text>
+                      <ProjectProgress
+                        tasks={tasks.filter((t) => t.project_id === p.id)}
+                      />
                       <Button
                         onPress={() => {
                           setSelected(p);
@@ -394,16 +541,32 @@ function Work() {
                       </Button>
                     </Card>
                   ))}
-            {taskView && !shownTasks.length && (
+            {(taskView
+              ? shownTasks.length
+              : projects.filter(
+                  (p) =>
+                    p.name.toLowerCase().includes(search.toLowerCase()) &&
+                    (!status || p.status === status),
+                ).length) > visibleCount && (
+              <Button onPress={() => setVisibleCount((v) => v + 30)}>
+                Show more
+              </Button>
+            )}
+            {taskView && !shownTasks.length && !refreshing && (
               <Text style={s.subtitle}>
                 No tasks here yet. Add one or adjust your filters.
               </Text>
             )}
-            {!taskView && !projects.length && (
-              <Text style={s.subtitle}>
-                Create your first project in the web app, then pull to refresh.
-              </Text>
-            )}
+            {!taskView &&
+              !projects.filter(
+                (p) =>
+                  p.name.toLowerCase().includes(search.toLowerCase()) &&
+                  (!status || p.status === status),
+              ).length && (
+                <Text style={s.subtitle}>
+                  No projects match. Create a project or clear your filters.
+                </Text>
+              )}
           </>
         )}
       </ScrollView>
@@ -419,6 +582,13 @@ function Work() {
           </Button>
         ))}
       </View>
+      {projectEditor && (
+        <ProjectEditor
+          project={projectEditor.project}
+          close={() => setProjectEditor(null)}
+          saved={load}
+        />
+      )}
       {editor && (
         <TaskEditor
           task={editor.task}
@@ -456,9 +626,7 @@ function TaskEditor({
   const [description, setDescription] = useState(task?.description ?? "");
   const [status, setStatus] = useState(task?.status ?? "Pending");
   const [priority, setPriority] = useState(task?.priority ?? "Medium");
-  const [due, setDue] = useState(
-    task?.due_date ?? new Date().toLocaleDateString("en-CA"),
-  );
+  const [due, setDue] = useState(task?.due_date ?? localDate());
   const [project, setProject] = useState(projectId ?? projects[0]?.id ?? "");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -481,8 +649,8 @@ function TaskEditor({
         method: task ? "PUT" : "POST",
         body: JSON.stringify(parsed.data),
       });
-      await saved();
       close();
+      void saved();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -490,85 +658,254 @@ function TaskEditor({
     }
   }
   return (
-    <Modal visible animationType="none" onRequestClose={close}>
-      <SafeAreaView style={s.screen}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={{ flex: 1 }}
+    <Sheet
+      title={task ? "Edit task" : "New task"}
+      close={close}
+      footer={
+        <Button primary disabled={busy || !projects.length} onPress={submit}>
+          {busy ? "Saving..." : "Save task"}
+        </Button>
+      }
+    >
+      <Field
+        label="Task name"
+        value={name}
+        onChangeText={setName}
+        maxLength={120}
+      />
+      <Field
+        label="Description"
+        value={description}
+        onChangeText={setDescription}
+        multiline
+        maxLength={4000}
+      />
+      {!task && (
+        <Choices
+          label="Project"
+          values={projects.map((p) => p.id)}
+          labels={Object.fromEntries(projects.map((p) => [p.id, p.name]))}
+          value={project}
+          onChange={setProject}
+        />
+      )}
+      <Choices
+        label="Status"
+        values={taskStatuses}
+        value={status}
+        onChange={(v) => setStatus(v as typeof status)}
+      />
+      <Choices
+        label="Priority"
+        values={priorities}
+        value={priority}
+        onChange={(v) => setPriority(v as typeof priority)}
+      />
+      <DateField label="Due date" value={due} onChange={setDue} />
+      {task && (
+        <Text style={s.small}>Created {task.created_at.slice(0, 10)}</Text>
+      )}
+      {error && (
+        <Text style={s.error} accessibilityRole="alert">
+          {error}
+        </Text>
+      )}
+    </Sheet>
+  );
+}
+function ProjectProgress({ tasks }: { tasks: Task[] }) {
+  const done = tasks.filter((t) => t.status === "Completed").length;
+  const value = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
+  return (
+    <View style={{ gap: rem(0.5) }}>
+      <Text style={s.small}>
+        {done} of {tasks.length} tasks completed
+      </Text>
+      <View
+        accessibilityRole="progressbar"
+        accessibilityValue={{ min: 0, max: 100, now: value }}
+        style={s.progressTrack}
+      >
+        <View
+          style={{
+            height: "100%",
+            width: `${value}%`,
+            backgroundColor: colors.coral,
+          }}
+        />
+      </View>
+    </View>
+  );
+}
+function Account() {
+  const { user, api, logout, updateProfile } = useSession();
+  const [name, setName] = useState(user?.fullName ?? "");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  async function save() {
+    const parsed = registerSchema
+      .pick({ fullName: true })
+      .safeParse({ fullName: name });
+    if (!parsed.success) {
+      setMessage(parsed.error.issues[0].message);
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    try {
+      const profile = await api<Profile>("/auth/profile", {
+        method: "PATCH",
+        body: JSON.stringify(parsed.data),
+      });
+      updateProfile(profile);
+      setMessage("Profile saved.");
+    } catch (e) {
+      setMessage((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <>
+      <Card>
+        <Text style={s.eyebrow}>YOUR PROFILE</Text>
+        <Field
+          label="Display name"
+          value={name}
+          onChangeText={setName}
+          maxLength={120}
+          autoComplete="name"
+        />
+        <Text style={s.label}>Email address</Text>
+        <Text selectable style={s.subtitle}>
+          {user?.email}
+        </Text>
+        <Text style={s.small}>
+          Changes appear on your phone and the Daymark website.
+        </Text>
+        {message && (
+          <Text accessibilityLiveRegion="polite" style={s.subtitle}>
+            {message}
+          </Text>
+        )}
+        <Button primary disabled={busy} onPress={save}>
+          {busy ? "Saving..." : "Save profile"}
+        </Button>
+      </Card>
+      <Card>
+        <Text style={s.itemTitle}>Account & security</Text>
+        <Button
+          onPress={() =>
+            Linking.openURL(
+              "https://daymark-by-sammy.vercel.app/forgot-password",
+            ).catch(() =>
+              setMessage("Open the Daymark website to reset your password."),
+            )
+          }
         >
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={s.content}
-          >
-            <View style={s.row}>
-              <Text style={s.title}>{task ? "Edit task" : "New task"}</Text>
-              <Button onPress={close}>Close</Button>
-            </View>
-            <Field
-              label="Task name"
-              value={name}
-              onChangeText={setName}
-              maxLength={120}
-            />
-            <Field
-              label="Description"
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              maxLength={4000}
-            />
-            {!task && (
-              <>
-                <Text style={s.label}>Project</Text>
-                {projects.map((p) => (
-                  <Button
-                    primary={project === p.id}
-                    key={p.id}
-                    onPress={() => setProject(p.id)}
-                  >
-                    {p.name}
-                  </Button>
-                ))}
-              </>
-            )}
-            <Choices
-              label="Status"
-              values={taskStatuses}
-              value={status}
-              onChange={(v) => setStatus(v as typeof status)}
-            />
-            <Choices
-              label="Priority"
-              values={priorities}
-              value={priority}
-              onChange={(v) => setPriority(v as typeof priority)}
-            />
-            <Field
-              label="Due date (YYYY-MM-DD)"
-              value={due}
-              onChangeText={setDue}
-              placeholder="2026-10-20"
-            />
-            {task && (
-              <Text style={s.small}>
-                Created {task.created_at.slice(0, 10)}
-              </Text>
-            )}
-            {error && (
-              <Text style={s.error} accessibilityRole="alert">
-                {error}
-              </Text>
-            )}
-            <Button
-              primary
-              disabled={busy || !projects.length}
-              onPress={submit}
-            >
-              {busy ? "Saving…" : "Save task"}
-            </Button>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </Modal>
+          Reset password
+        </Button>
+        <Button
+          onPress={() =>
+            Alert.alert(
+              "Sign out of Daymark?",
+              "Your work is saved to your account.",
+              [
+                { text: "Stay here", style: "cancel" },
+                { text: "Sign out", onPress: () => void logout() },
+              ],
+            )
+          }
+        >
+          Sign out
+        </Button>
+      </Card>
+    </>
+  );
+}
+function ProjectEditor({
+  project,
+  close,
+  saved,
+}: {
+  project?: Project;
+  close: () => void;
+  saved: () => Promise<void>;
+}) {
+  const { api } = useSession();
+  const [name, setName] = useState(project?.name ?? "");
+  const [description, setDescription] = useState(project?.description ?? "");
+  const [status, setStatus] = useState(project?.status ?? "Not Started");
+  const [start, setStart] = useState(project?.start_date ?? localDate());
+  const [end, setEnd] = useState(project?.end_date ?? localDate());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function save() {
+    const parsed = projectSchema.safeParse({
+      name,
+      description,
+      status,
+      start_date: start,
+      end_date: end,
+    });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0].message);
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await api(`/projects${project ? "/" + project.id : ""}`, {
+        method: project ? "PUT" : "POST",
+        body: JSON.stringify(parsed.data),
+      });
+      close();
+      void saved();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Sheet
+      title={project ? "Edit project" : "New project"}
+      close={close}
+      footer={
+        <Button primary disabled={busy} onPress={save}>
+          {busy ? "Saving..." : project ? "Save changes" : "Create project"}
+        </Button>
+      }
+    >
+      <Text style={s.subtitle}>Give your work a place to start.</Text>
+      <Field
+        label="Project name"
+        value={name}
+        onChangeText={setName}
+        maxLength={120}
+        placeholder="What are you working on?"
+      />
+      <Field
+        label="Description"
+        value={description}
+        onChangeText={setDescription}
+        multiline
+        maxLength={4000}
+        placeholder="Goals, context, or a few useful details"
+      />
+      <Choices
+        label="Status"
+        values={projectStatuses}
+        value={status}
+        onChange={(v) => setStatus(v as typeof status)}
+      />
+      <DateField label="Start date" value={start} onChange={setStart} />
+      <DateField label="End date" value={end} onChange={setEnd} />
+      {error && (
+        <Text accessibilityRole="alert" style={s.error}>
+          {error}
+        </Text>
+      )}
+    </Sheet>
   );
 }

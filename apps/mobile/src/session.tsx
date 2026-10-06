@@ -16,6 +16,7 @@ type SessionContextValue = {
   api: ReturnType<typeof createApi>;
   authenticate: (v: AuthResponse) => Promise<void>;
   logout: () => Promise<void>;
+  updateProfile: (profile: Profile) => void;
   retry: () => Promise<void>;
 };
 const Context = createContext<SessionContextValue | null>(null);
@@ -78,7 +79,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }
   return (
     <Context.Provider
-      value={{ user, loading, message, api, authenticate, logout, retry }}
+      value={{
+        user,
+        loading,
+        message,
+        api,
+        authenticate,
+        logout,
+        retry,
+        updateProfile: setUser,
+      }}
     >
       {children}
     </Context.Provider>

@@ -48,3 +48,13 @@ The build initially failed because stale nested React copies survived the depend
 The owner explicitly chose to keep Supabase's default email sender. Site URL and the exact production recovery redirect are configured. Public email delivery remains restricted to pre-authorized team addresses; custom SMTP is required before broad public signup. A real delivered recovery email, credential reset, and access-token refresh across its expiry have not been tested end to end.
 
 Four additional integration tests exercise the real Supabase SDK against an isolated local Auth protocol fixture. They verify HttpOnly/Secure cookie issuance without token leakage in JSON, refresh when the access cookie is missing, a profile metadata update using the verified user's JWT, and recovery-token validation before password update. They send no email and create no real account. These supplement the browser and live database checks; they do not replace real email delivery testing.
+
+### Expo Go mobile update, 6 October 2026
+
+The native app uses the Daymark brand, compact overview metrics, upcoming tasks, project progress, explicit task completion controls, and a four-tab navigation bar. Project and task forms use full-screen selection sheets and a local-date calendar with quick dates. Save stays outside the scrolling form. Profile editing is available in Account; password recovery opens the secure web flow.
+
+Mobile loads `/api/workspace` in one request, preserves data between tabs, skips foreground reloads for 60 seconds, and renders long lists in batches of 30. Task completion updates immediately and rolls back on request failure. Data is kept in memory, scoped to the signed-in screen.
+
+The API reads public filters from the request URL so Next.js catch-all `path` metadata cannot enter strict project/task filter validation. Unknown URL filters and duplicate filters still fail validation.
+
+Verification: 22 automated tests passed; API, mobile and web typechecks passed; the Android development bundle returned HTTP 200 and includes the Daymark routes, workspace loading, calendar and profile controls. Full physical-device interaction testing, iOS layout, large system text, and screen-reader traversal remain unverified. Motion is disabled for modal transitions, so reduced-motion users receive the same static interface.

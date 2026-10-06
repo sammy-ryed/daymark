@@ -139,3 +139,9 @@ erDiagram
   PROJECTS { uuid id PK uuid owner_id FK text name text status date start_date date end_date }
   TASKS { uuid id PK uuid project_id FK text name text status text priority date due_date }
 ```
+
+### Expo Go on your phone
+
+The native Daymark app includes project creation/editing, task management, a compact overview, date selection, profile editing, and password recovery through the web app. It uses the same live account and data as the website.
+
+Run `npm run mobile -- --go --lan` and connect your phone to the computer's Wi-Fi. Open the displayed QR code in Expo Go. The mobile entry explicitly resolves `./app`, which also supports this workspace's dependencies on a separate drive. Set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your deployed API URL, then restart Expo after changing it. If route changes appear stale, restart with `npm run mobile -- --go --lan --clear`.
