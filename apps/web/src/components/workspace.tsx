@@ -1,4 +1,5 @@
 "use client";
+import { useDiscardGuard } from "./discard-guard";
 import { Select, DatePicker } from "./form-controls";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
@@ -1167,7 +1168,30 @@ function Editor({
   const [error, setError] = useState("");
   const p = item as Project | undefined;
   const t = item as Task | undefined;
-  const today = localDay();
+  const [today] = useState(localDay);
+  const formRef = useRef<HTMLFormElement>(null);
+  const initial = useRef<Record<string, string>>({
+    name: item?.name ?? "",
+    description: item?.description ?? "",
+    status:
+      item?.status ??
+      (kind === "project" ? "Not Started" : (defaultStatus ?? "Pending")),
+    ...(kind === "project"
+      ? { start_date: p?.start_date ?? today, end_date: p?.end_date ?? today }
+      : {
+          priority: t?.priority ?? "Medium",
+          due_date: t?.due_date ?? today,
+          ...(!item ? { project_id: projectId ?? projects[0]?.id ?? "" } : {}),
+        }),
+  });
+  const guard = useDiscardGuard(() => {
+    if (!formRef.current) return false;
+    const values = new FormData(formRef.current);
+    return Object.entries(initial.current).some(
+      ([key, value]) => String(values.get(key) ?? "") !== value,
+    );
+  }, busy);
+  const requestClose = () => guard.requestClose(close);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.currentTarget));
@@ -1194,136 +1218,134 @@ function Editor({
     }
   }
   return (
-    <Dialog
-      title={`${item ? "Edit" : "New"} ${kind}`}
-      close={() => {
-        if (!busy) close();
-      }}
-    >
-      {kind === "task" && !projects.length ? (
-        <Empty
-          title="First, a project."
-          body="Create a project before adding its tasks."
-        />
-      ) : (
-        <form onSubmit={submit} className="editor-form">
-          <div className="editor-fields">
-            <label>
-              {kind === "project" ? "Project" : "Task"} name
-              <input
-                name="name"
-                defaultValue={item?.name}
-                required
-                maxLength={120}
-                autoFocus
-                placeholder="Give it a name"
-              />
-            </label>
-            <label>
-              Description
-              <textarea
-                name="description"
-                defaultValue={item?.description}
-                rows={3}
-                maxLength={4000}
-                placeholder="A little context goes a long way."
-              />
-            </label>
-            {kind === "task" && !item && (
+    <>
+      <Dialog title={`${item ? "Edit" : "New"} ${kind}`} close={requestClose}>
+        {kind === "task" && !projects.length ? (
+          <Empty
+            title="First, a project."
+            body="Create a project before adding its tasks."
+          />
+        ) : (
+          <form ref={formRef} onSubmit={submit} className="editor-form">
+            <div className="editor-fields">
               <label>
-                Project
-                <Select
-                  name="project_id"
-                  defaultValue={projectId ?? projects[0]?.id}
-                >
-                  {projects.map((p) => (
-                    <option value={p.id} key={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </Select>
+                {kind === "project" ? "Project" : "Task"} name
+                <input
+                  name="name"
+                  defaultValue={item?.name}
+                  required
+                  maxLength={120}
+                  autoFocus
+                  placeholder="Give it a name"
+                />
               </label>
-            )}
-            <div className="form-grid">
               <label>
-                Status
-                <Select
-                  name="status"
-                  defaultValue={
-                    item?.status ??
-                    (kind === "project"
-                      ? "Not Started"
-                      : (defaultStatus ?? "Pending"))
-                  }
-                >
-                  {(kind === "project" ? projectStatuses : taskStatuses).map(
-                    (s) => (
-                      <option key={s}>{s}</option>
-                    ),
-                  )}
-                </Select>
+                Description
+                <textarea
+                  name="description"
+                  defaultValue={item?.description}
+                  rows={3}
+                  maxLength={4000}
+                  placeholder="A little context goes a long way."
+                />
               </label>
-              {kind === "task" && (
+              {kind === "task" && !item && (
                 <label>
-                  Priority
+                  Project
                   <Select
-                    name="priority"
-                    defaultValue={t?.priority ?? "Medium"}
+                    name="project_id"
+                    defaultValue={projectId ?? projects[0]?.id}
                   >
-                    {priorities.map((v) => (
-                      <option key={v}>{v}</option>
+                    {projects.map((p) => (
+                      <option value={p.id} key={p.id}>
+                        {p.name}
+                      </option>
                     ))}
                   </Select>
                 </label>
               )}
-            </div>
-            <div className="form-grid">
-              {kind === "project" ? (
-                <>
-                  <label>
-                    Start date
-                    <DatePicker
-                      name="start_date"
-                      defaultValue={p?.start_date ?? today}
-                      required
-                    />
-                  </label>
-                  <label>
-                    End date
-                    <DatePicker
-                      name="end_date"
-                      defaultValue={p?.end_date ?? today}
-                      required
-                    />
-                  </label>
-                </>
-              ) : (
+              <div className="form-grid">
                 <label>
-                  Due date
-                  <DatePicker
-                    name="due_date"
-                    defaultValue={t?.due_date ?? today}
-                    required
-                  />
+                  Status
+                  <Select
+                    name="status"
+                    defaultValue={
+                      item?.status ??
+                      (kind === "project"
+                        ? "Not Started"
+                        : (defaultStatus ?? "Pending"))
+                    }
+                  >
+                    {(kind === "project" ? projectStatuses : taskStatuses).map(
+                      (s) => (
+                        <option key={s}>{s}</option>
+                      ),
+                    )}
+                  </Select>
                 </label>
+                {kind === "task" && (
+                  <label>
+                    Priority
+                    <Select
+                      name="priority"
+                      defaultValue={t?.priority ?? "Medium"}
+                    >
+                      {priorities.map((v) => (
+                        <option key={v}>{v}</option>
+                      ))}
+                    </Select>
+                  </label>
+                )}
+              </div>
+              <div className="form-grid">
+                {kind === "project" ? (
+                  <>
+                    <label>
+                      Start date
+                      <DatePicker
+                        name="start_date"
+                        defaultValue={p?.start_date ?? today}
+                        required
+                      />
+                    </label>
+                    <label>
+                      End date
+                      <DatePicker
+                        name="end_date"
+                        defaultValue={p?.end_date ?? today}
+                        required
+                      />
+                    </label>
+                  </>
+                ) : (
+                  <label>
+                    Due date
+                    <DatePicker
+                      name="due_date"
+                      defaultValue={t?.due_date ?? today}
+                      required
+                    />
+                  </label>
+                )}
+              </div>
+              {item && (
+                <p className="small">Created {dateLabel(item.created_at)}</p>
               )}
+              {error && <Message>{error}</Message>}
             </div>
-            {item && (
-              <p className="small">Created {dateLabel(item.created_at)}</p>
-            )}
-            {error && <Message>{error}</Message>}
-          </div>
-          <div className="form-actions">
-            <button type="button" disabled={busy} onClick={close}>
-              Cancel
-            </button>
-            <button className="primary" disabled={busy}>
-              {busy ? "Saving…" : item ? "Save changes" : `Create ${kind}`}
-              <ArrowUpRight size={18} />
-            </button>
-          </div>
-        </form>
-      )}
-    </Dialog>
+            <div className="form-actions">
+              <button type="button" disabled={busy} onClick={requestClose}>
+                Cancel
+              </button>
+              <button className="primary" disabled={busy}>
+                {busy ? "Saving…" : item ? "Save changes" : `Create ${kind}`}
+                <ArrowUpRight size={18} />
+              </button>
+            </div>
+          </form>
+        )}
+      </Dialog>
+      {guard.confirmation}
+    </>
   );
 }

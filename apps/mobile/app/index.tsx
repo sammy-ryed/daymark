@@ -5,6 +5,7 @@ import {
   useWindowDimensions,
   Alert,
   AppState,
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
   RefreshControl,
@@ -15,6 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSession } from "../src/session";
 import {
+  confirmDiscard,
   Button,
   Card,
   Choices,
@@ -183,6 +185,7 @@ function Work() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(30);
   const [tab, setTab] = useState("Overview");
+  const accountLeave = useRef<((leave: () => void) => void) | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [stats, setStats] = useState<Dashboard | null>(null);
@@ -236,13 +239,32 @@ function Work() {
     return () => listener.remove();
   }, [load]);
   const go = (value: string) => {
-    setTab(value);
-    setFiltersOpen(false);
-    setSelected(null);
-    setSearch("");
-    setStatus("");
-    setPriority("");
+    if (value === tab && !selected) return;
+    const leave = () => {
+      setTab(value);
+      setFiltersOpen(false);
+      setSelected(null);
+      setSearch("");
+      setStatus("");
+      setPriority("");
+    };
+    if (tab === "Account" && accountLeave.current) accountLeave.current(leave);
+    else leave();
   };
+  useEffect(() => {
+    const back = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (tab === "Account") {
+        go("Overview");
+        return true;
+      }
+      if (selected) {
+        setSelected(null);
+        return true;
+      }
+      return false;
+    });
+    return () => back.remove();
+  }, [tab, selected]);
   const taskView = tab === "Tasks" || Boolean(selected);
   async function complete(t: Task) {
     setBusy(true);
@@ -415,7 +437,7 @@ function Work() {
             </View>
           </>
         )}
-        {tab === "Account" && <Account />}
+        {tab === "Account" && <Account leaveRef={accountLeave} />}
         {(tab === "Projects" || tab === "Tasks") && (
           <>
             <Field
@@ -630,6 +652,12 @@ function TaskEditor({
   const [project, setProject] = useState(projectId ?? projects[0]?.id ?? "");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const initial = useRef(
+    JSON.stringify({ name, description, status, priority, due, project }),
+  );
+  const dirty =
+    JSON.stringify({ name, description, status, priority, due, project }) !==
+    initial.current;
   async function submit() {
     const parsed = (task ? taskSchema : createTaskSchema).safeParse({
       name,
@@ -660,6 +688,8 @@ function TaskEditor({
   return (
     <Sheet
       title={task ? "Edit task" : "New task"}
+      dirty={dirty}
+      busy={busy}
       close={close}
       footer={
         <Button primary disabled={busy || !projects.length} onPress={submit}>
@@ -737,11 +767,24 @@ function ProjectProgress({ tasks }: { tasks: Task[] }) {
     </View>
   );
 }
-function Account() {
+function Account({
+  leaveRef,
+}: {
+  leaveRef: React.RefObject<((leave: () => void) => void) | null>;
+}) {
   const { user, api, logout, updateProfile } = useSession();
   const [name, setName] = useState(user?.fullName ?? "");
+  const isDirty = name !== (user?.fullName ?? "");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  useEffect(() => {
+    leaveRef.current = (leave) => {
+      if (!busy) confirmDiscard(isDirty, leave);
+    };
+    return () => {
+      leaveRef.current = null;
+    };
+  }, [isDirty, busy, leaveRef]);
   async function save() {
     const parsed = registerSchema
       .pick({ fullName: true })
@@ -812,7 +855,10 @@ function Account() {
               "Your work is saved to your account.",
               [
                 { text: "Stay here", style: "cancel" },
-                { text: "Sign out", onPress: () => void logout() },
+                {
+                  text: "Sign out",
+                  onPress: () => confirmDiscard(isDirty, () => void logout()),
+                },
               ],
             )
           }
@@ -840,6 +886,12 @@ function ProjectEditor({
   const [end, setEnd] = useState(project?.end_date ?? localDate());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const initial = useRef(
+    JSON.stringify({ name, description, status, start, end }),
+  );
+  const dirty =
+    JSON.stringify({ name, description, status, start, end }) !==
+    initial.current;
   async function save() {
     const parsed = projectSchema.safeParse({
       name,
@@ -870,6 +922,8 @@ function ProjectEditor({
   return (
     <Sheet
       title={project ? "Edit project" : "New project"}
+      dirty={dirty}
+      busy={busy}
       close={close}
       footer={
         <Button primary disabled={busy} onPress={save}>

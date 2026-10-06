@@ -1,4 +1,5 @@
 "use client";
+import { useDiscardGuard } from "./discard-guard";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -8,6 +9,7 @@ import { api } from "@/lib/api";
 
 export function Account({ mode }: { mode: "profile" | "forgot" | "reset" }) {
   const qc = useQueryClient();
+  const formRef = useRef<HTMLFormElement>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -21,6 +23,14 @@ export function Account({ mode }: { mode: "profile" | "forgot" | "reset" }) {
     queryFn: () => api<Profile>("/auth/me"),
     enabled: mode === "profile",
   });
+  const guard = useDiscardGuard(
+    () =>
+      mode === "profile" &&
+      Boolean(profile.data && formRef.current) &&
+      String(new FormData(formRef.current!).get("fullName") ?? "") !==
+        profile.data?.fullName,
+    busy,
+  );
   useEffect(() => {
     if (mode !== "reset") return;
     const hash = new URLSearchParams(window.location.hash.slice(1));
@@ -51,6 +61,10 @@ export function Account({ mode }: { mode: "profile" | "forgot" | "reset" }) {
           method: "PATCH",
           body: JSON.stringify({ fullName: form.get("fullName") }),
         });
+        const input = formRef.current?.elements.namedItem(
+          "fullName",
+        ) as HTMLInputElement | null;
+        if (input) input.value = user.fullName;
         qc.setQueryData(["me"], user);
         void qc.invalidateQueries({ queryKey: ["workspace"] });
         setMessage("Your profile is updated.");
@@ -126,7 +140,7 @@ export function Account({ mode }: { mode: "profile" | "forgot" | "reset" }) {
               <Link href="/login">Sign in</Link>
             </>
           ) : (
-            <form onSubmit={submit}>
+            <form ref={formRef} onSubmit={submit}>
               {mode === "profile" && (
                 <>
                   <span className="profile-avatar" aria-hidden="true">
@@ -252,6 +266,7 @@ export function Account({ mode }: { mode: "profile" | "forgot" | "reset" }) {
           </section>
         )}
       </main>
+      {guard.confirmation}
     </>
   );
 }

@@ -58,3 +58,9 @@ Mobile loads `/api/workspace` in one request, preserves data between tabs, skips
 The API reads public filters from the request URL so Next.js catch-all `path` metadata cannot enter strict project/task filter validation. Unknown URL filters and duplicate filters still fail validation.
 
 Verification: 22 automated tests passed; API, mobile and web typechecks passed; the Android development bundle returned HTTP 200 and includes the Daymark routes, workspace loading, calendar and profile controls. Full physical-device interaction testing, iOS layout, large system text, and screen-reader traversal remain unverified. Motion is disabled for modal transitions, so reduced-motion users receive the same static interface.
+
+### Unsaved edits
+
+Project and task editors ask before discarding changed fields on web Close, Cancel and Escape, and on mobile Close and Android Back. Unchanged forms close directly; successful saves bypass the prompt. Profile navigation also guards unsaved name changes. Web refresh/tab closing uses the browser's native unsaved-changes warning. Force-closing a mobile app cannot be intercepted.
+
+Browser verification confirmed dirty Cancel/Escape, Keep editing retaining a draft, Discard closing without saving, and unchanged dismissal using isolated fixture data. Mobile bundle and TypeScript checks passed; physical-device confirmation testing remains pending.

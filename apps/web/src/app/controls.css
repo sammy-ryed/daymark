@@ -366,3 +366,7 @@ dialog .dialog-head {
     animation: none;
   }
 }
+
+.discard-dialog { width: min(28rem, calc(100vw - 2rem)); }
+.discard-dialog .dialog-body { padding: 1.5rem; }
+.discard-dialog .form-actions { flex-wrap: wrap; padding: 1rem 0 0; }

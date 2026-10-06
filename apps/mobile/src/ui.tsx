@@ -1,5 +1,6 @@
 ﻿import {
   StyleSheet,
+  Alert,
   Text,
   TextInput,
   Pressable,
@@ -104,17 +105,24 @@ export function Sheet({
   children,
   close,
   footer,
+  dirty = false,
+  busy = false,
 }: {
   title: string;
   children: ReactNode;
   close: () => void;
   footer?: ReactNode;
+  dirty?: boolean;
+  busy?: boolean;
 }) {
+  const requestClose = () => {
+    if (!busy) confirmDiscard(dirty, close);
+  };
   return (
     <Modal
       visible
       animationType="none"
-      onRequestClose={close}
+      onRequestClose={requestClose}
       presentationStyle="fullScreen"
     >
       <SafeAreaView style={s.screen}>
@@ -126,7 +134,9 @@ export function Sheet({
             <Text accessibilityRole="header" style={[s.itemTitle, { flex: 1 }]}>
               {title}
             </Text>
-            <Button onPress={close}>Close</Button>
+            <Button disabled={busy} onPress={requestClose}>
+              Close
+            </Button>
           </View>
           <ScrollView
             keyboardShouldPersistTaps="handled"
@@ -478,3 +488,19 @@ export const s = StyleSheet.create({
     overflow: "hidden",
   },
 });
+
+export function confirmDiscard(dirty: boolean, leave: () => void) {
+  if (!dirty) {
+    leave();
+    return;
+  }
+  Alert.alert(
+    "Discard changes?",
+    "Your changes have not been saved.",
+    [
+      { text: "Keep editing", style: "cancel" },
+      { text: "Discard changes", style: "destructive", onPress: leave },
+    ],
+    { cancelable: true },
+  );
+}
