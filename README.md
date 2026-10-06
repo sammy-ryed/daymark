@@ -1,70 +1,135 @@
 # Daymark
 
-Daymark brings projects, tasks, and deadlines into one calm workspace. It includes a Next.js web app, Expo Go Android app, and an Express API using Supabase Auth and PostgreSQL. Its design combines Minimal Type Gallery with the Taste Skill redesign audit. See [design decisions](docs/DESIGN.md).
+**A little less noise. A little more progress.**
 
-Public repository: https://github.com/sammy-ryed/daymark
+A personal workspace for projects, tasks, and deadlines. Built with Next.js, Expo Go, Express, and Supabase. Typography and motion follow Minimal Type Gallery and Taste Skill.
+
+[Open Daymark](https://daymark-by-sammy.vercel.app) · [Source](https://github.com/sammy-ryed/daymark) · [Design](docs/DESIGN.md) · [Verification](docs/VERIFICATION.md)
+
+![Daymark sign-in screen](docs/images/sign-in.jpg)
+
+## Your work, at a glance
+
+See projects, pending work, upcoming deadlines, and progress without opening every project. Switch between a task list and a board, filter the work that matters, and use **Mark done** to finish a task.
+
+![Daymark overview with sample projects and deadlines](docs/images/dashboard.jpg)
+
+## Made for the details
+
+- Create, edit, and delete projects and tasks with validation and deletion warnings.
+- Organize tasks by status, priority, project, and deadline. Search, sort, and export the current view as CSV.
+- Switch between list and board layouts; your layout preference is remembered.
+- Use themed dropdowns with keyboard navigation and a calendar with Today, Tomorrow, and In a week shortcuts.
+- Keep Save within reach in scrollable mobile forms.
+- Edit your display name, inspect your account email, and request a password reset.
+- See task status changes immediately. Failed saves restore the previous state.
+- Navigate with visible focus, accessible labels, and shortcuts: **Alt + N** creates, **Alt + K** searches.
+- Use a responsive layout with rem dimensions and a reduced-motion fallback.
+
+![Daymark task board with explicit completion actions](docs/images/task-board.jpg)
+
+Screenshots show the actual application. The overview and board use an isolated sample workspace for documentation, with no real user data or seeded production records.
+
+## Live deployment
+
+**Web:** https://daymark-by-sammy.vercel.app  
+**API:** https://daymark-by-sammy.vercel.app/api  
+**Health:** https://daymark-by-sammy.vercel.app/api/health
+
+Vercel builds `apps/web` from GitHub `main`. Next.js serves Express through `/api/[...path]`, keeping browser cookies on the same origin. Functions run in Mumbai (`bom1`), near Supabase. Static assets use platform caching; private API responses use `Cache-Control: no-store`.
+
+**Email delivery is intentionally limited for now.** The owner chose to retain Supabase's default sender. It only delivers to pre-authorized Supabase team addresses and is not a public production email service. Public signup confirmation and recovery require [custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp). Existing confirmed accounts can sign in. Email confirmation remains enabled.
 
 ## Run locally
 
-1. Use Node.js 22 or later. On this machine run `powershell -File scripts/install-dependencies.ps1` to install on D:. On another machine with adequate space, ordinary `npm install` is also supported.
-2. The API's ignored `apps/api/.env` is connected to project `mulxqpqzwdrzplnuhddn`. A new environment can copy `apps/api/.env.example` and set its project URL and publishable key. No service-role key is used by the application.
-3. Run `npm run dev` from the root. Open http://localhost:3000. The API runs on port 4000. Next.js proxies `/api` to Express. In deployment, set `API_ORIGIN` in the web environment to the Express origin and `WEB_ORIGIN` in Express to the exact public web origin.
-4. Run `npm run mobile` in a second terminal. Open the QR code with Android Expo Go compatible with SDK 57. `apps/mobile/.env` points to `http://192.168.1.12:4000/api`; update it when the computer's LAN IP changes. Phone and computer must share a network. A Metro tunnel does not expose the API; use a deployed HTTPS API for remote mobile access.
+Use Node.js 22.12+ or Node.js 24 and npm.
 
-The web package has a small launcher that preserves module paths across the C:/D: directory junction. Avoid running `npm install` directly in the root on this machine: npm may replace the junction and fill C: again. Use the install script instead. The smaller `.next` folder must remain local; linking it to another drive caused routing failures. Expo's `REACT_NATIVE_PACKAGER_HOSTNAME` is set to the Wi-Fi address to avoid advertising the Windows virtual-network adapter.
+```sh
+npm ci
+cp apps/web/.env.example apps/web/.env.local
+cp apps/api/.env.example apps/api/.env
+npm run dev
+```
 
-## Supabase
+Set the Supabase URL and publishable key in both environment files. Set `WEB_ORIGIN=http://localhost:3000`. Open http://localhost:3000. The web app includes its same-origin API; the standalone API on port 4000 remains available for mobile development. Set `API_ORIGIN` only if you want the web app to proxy a separate Express server.
 
-The `project-management` project is in Mumbai. The migration in `supabase/migrations` was applied through the SQL editor. Do not reapply it to this existing project. CLI migration history has not been synchronized because the CLI is not authenticated to the account. For a fresh project, apply the migration once through SQL Editor or authenticated Supabase CLI.
+On this Windows workspace, source stays at `C:\Users\lenovo\Desktop\project` while dependencies and caches live on D:
 
-Tables `projects` and `tasks` have row-level security, explicit authenticated grants, ownership policies, constrained statuses/dates/text lengths, and foreign keys. Dashboard statistics use a security-invoker function so counts obey the same policies. Auth owns password hashing, unique emails, and sessions. `full_name` is display metadata only and never authorizes data access.
+```powershell
+powershell -File scripts/install-dependencies.ps1
+```
 
-Email confirmation follows the project's Auth configuration. If enabled, registration tells the user to confirm their email before signing in. Configure the Supabase Auth Site URL to the web URL before sharing the app. Use fictitious data for assessment/demo work.
+Use this installer instead of reinstalling over the `node_modules` junction. Keep `.next` on C: and stop the dev server before building. The launcher preserves module paths across the junction. React is pinned consistently across workspaces to avoid duplicate server-renderer runtimes.
 
-Web stores the access token in an HttpOnly cookie. Mobile uses Expo SecureStore. This version intentionally expires at the access-token deadline rather than silently refreshing. Supabase sign-out revokes the refresh session; already issued access JWTs can remain valid until their expiry. Local credentials are cleared on logout. Set a suitable JWT expiry in Supabase; strict immediate access-token revocation is not implemented.
+## Expo Go
 
-## Features
+The Android companion uses the same accounts and API. It supports project viewing, task management, filters, dashboard metrics, and pull-to-refresh.
 
-- Registration, login, logout, restored sessions, clear expired-session and network states.
-- Web project create/read/update/delete with date validation and cascade warnings.
-- Task create/read/update/delete, complete/reopen, priority and status editing on both clients.
-- Search and filters, project details, all five dashboard metrics, explicit refresh and mobile pull-to-refresh.
-- Web list/board views, inline status changes, project/deadline filters, due-date/priority/name/newest sorting, and filtered CSV export.
-- An Up next dashboard with upcoming deadlines, overdue/today views, and completion progress.
-- Success notifications, remembered task layout, password visibility, and keyboard shortcuts (Alt + N to create, Alt + K to search).
-- Supabase RLS for owner isolation, backend validation, browser origin checks, auth rate limits, sanitized errors, request logging.
-- Responsive rem-based web layout, semantic controls, visible focus, modal focus handling, and static reduced-motion fallback. Native dimensions are derived from a rem helper and native text remains scalable.
+```sh
+cp apps/mobile/.env.example apps/mobile/.env
+npm run mobile
+```
 
-Search/filter UI operates on loaded lists; REST filters are also supported. Lists are currently limited by the Supabase Data API's configured row cap. Pagination is a remaining improvement before using large datasets. Project creation/editing is available on web; the mobile brief requires project viewing and task management.
+Set `EXPO_PUBLIC_API_URL=https://daymark-by-sammy.vercel.app/api` to use the hosted API. Alternatively, use `http://YOUR_COMPUTER_LAN_IP:4000/api` with the local API running. Scan Metro's QR code with Expo Go compatible with SDK 57. Restart Metro after changing environment variables. Physical Android verification and an APK are still outstanding.
+
+## Supabase and authentication
+
+For a fresh project, apply the SQL files in `supabase/migrations` in order. They create owner-isolating row-level policies, validation constraints, and a security-invoker dashboard function. The existing project already has these migrations applied through SQL Editor; its CLI migration history has not been synchronized. Do not reapply them blindly.
+
+The application uses a publishable key plus the signed-in user's JWT. It never uses a service-role key. Never commit environment files or tokens.
+
+Supabase Authentication URL Configuration:
+
+- Site URL: `https://daymark-by-sammy.vercel.app`
+- Redirect URL: `https://daymark-by-sammy.vercel.app/reset-password`
+- Add `http://localhost:3000/reset-password` only when testing recovery locally.
+
+Web access and refresh tokens use HttpOnly, SameSite cookies with Secure enabled in production. Expired web access tokens refresh on the next request. Recovery removes tokens from the URL fragment immediately, validates them server-side, and requests global session sign-out after resetting the password. Already issued access JWTs can remain valid until expiry. Mobile stores its access token in Expo SecureStore and asks for sign-in again at expiry.
+
+## Performance and security
+
+- One workspace request replaces the old profile-to-three-request loading sequence. Independent database reads run in parallel.
+- React Query retains private data in memory with a 60-second freshness window. Logout clears it. Private workspace data is not persisted in localStorage.
+- Status changes are optimistic, with rollback on failure and background reconciliation.
+- Workspace reads page through PostgREST results to avoid silent row truncation. Search remains client-side; very large workspaces need server pagination and virtualized lists before scale testing.
+- Schemas validate every mutation. Supabase RLS enforces ownership independently of the UI.
+- Cookie writes require the trusted origin and a custom header. Native clients use bearer tokens.
+- Auth limits skip read-only requests. Vercel's trusted proxy supplies client IPs. The application limiter is instance-local; Supabase Auth limits also apply.
+- Security headers, bounded JSON bodies, sanitized errors, and request IDs are included. Logs omit bodies and credentials.
 
 ## Checks
 
-`npm run typecheck`, `npm test`, and `npm run build` check the workspace. `npm exec -w @project/mobile -- expo install --check` checks Expo compatibility. `npm exec -w @project/mobile -- expo export --platform android` verifies Metro can bundle Android JavaScript; it is not a device test or an APK.
+```sh
+npm run typecheck
+npm test
+npm run build
+npm audit --omit=dev --workspace @project/web --workspace @project/api
+```
 
-See `docs/VERIFICATION.md` for executed checks and remaining gaps. No hosted deployment, APK, or five-minute recording has been produced yet.
+GitHub Actions checks web/API changes on pushes and pull requests. Vercel performs its own production build. On 6 October 2026, all 20 tests passed, TypeScript passed across web/API/mobile, the deployment was ready, and the web/API production audit reported zero vulnerabilities. The Expo tree still has upstream advisories. See [verification details and limits](docs/VERIFICATION.md).
 
-## API
+## API reference
 
-All routes are prefixed `/api`. Browser clients use credentials and `X-Project-Client: web`; writes must have the configured web Origin. Native clients use `X-Project-Client: mobile` and `Authorization: Bearer <token>` after login. Send JSON bodies. Successful creates return 201, reads/updates 200, deletes/logout 204. Errors return `{message, fields?}` with 400/401/403/404/429/502/503 as applicable.
+Routes use the `/api` prefix and JSON. Web writes send `X-Project-Client: web` and the configured Origin. Mobile sends `X-Project-Client: mobile` and `Authorization: Bearer <token>` after login.
 
-| Route | Request |
+| Route | Purpose |
 | --- | --- |
-| POST `/auth/register` | `{fullName,email,password}` |
-| POST `/auth/login` | `{email,password}` |
-| POST `/auth/logout` | Empty body; revoke current session |
-| GET `/auth/me` | Safe profile `{id,email,fullName}` |
-| GET `/projects` | Optional `search`, `status` query parameters |
-| POST `/projects` | `{name,description,status,start_date,end_date}` |
-| GET, PUT, DELETE `/projects/:id` | PUT uses full editable project body |
-| GET `/tasks` | Optional `search`, `projectId`, `status`, `priority` |
-| POST `/tasks` | `{project_id,name,description,status,priority,due_date}` |
-| GET, PUT, DELETE `/tasks/:id` | PUT uses task body without `project_id` |
-| GET `/dashboard` | `{totalProjects,totalTasks,completedTasks,pendingTasks,projectsInProgress}` |
-| GET `/health` | Process status and whether Supabase is configured |
+| POST `/auth/register` | Register with `{fullName,email,password}` |
+| POST `/auth/login` | Sign in with `{email,password}` |
+| POST `/auth/logout` | Revoke the current refresh session and clear cookies |
+| GET `/auth/me` | Read the safe profile |
+| PATCH `/auth/profile` | Update `{fullName}` |
+| POST `/auth/forgot-password` | Request recovery with `{email}` |
+| POST `/auth/reset-password` | Validate recovery tokens and change password |
+| GET `/workspace` | Profile, projects, tasks, and dashboard together |
+| GET, POST `/projects` | List or create projects |
+| GET, PUT, DELETE `/projects/:id` | Read, update, or delete an owned project |
+| GET, POST `/tasks` | List or create tasks |
+| GET, PUT, DELETE `/tasks/:id` | Read, update, or delete an owned task |
+| GET `/dashboard` | Five owner-scoped counts |
+| GET `/health` | Process status and configuration availability |
 
-Project statuses: Not Started, In Progress, Completed. Task statuses: Pending, In Progress, Completed. Priorities: Low, Medium, High. Dates are `YYYY-MM-DD`; timestamps are UTC. Projects contain owner_id, tasks inherit ownership through project_id. Read/update responses include id, created_at, updated_at. Mobile login returns user, accessToken, expiresAt; web receives the safe user and cookie. Registration with email confirmation returns 202 and a message.
-
-## Data relationships
+Project statuses: Not Started, In Progress, Completed. Task statuses: Pending, In Progress, Completed. Priorities: Low, Medium, High. Dates: `YYYY-MM-DD`. Validation contracts live in `packages/contracts`.
 
 ```mermaid
 erDiagram

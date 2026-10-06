@@ -30,6 +30,7 @@ type Config = {
   key: string;
   webOrigin: string;
   production?: boolean;
+  vercelProxy?: boolean;
 };
 class HttpError extends Error {
   constructor(
@@ -63,6 +64,7 @@ const taskColumns =
 
 export function createApp(config: Config) {
   const app = express();
+  if (config.vercelProxy) app.set("trust proxy", 1);
   const configured = Boolean(config.url && config.key);
   const client = (token?: string) =>
     createClient(config.url, config.key, {

@@ -290,7 +290,7 @@ function Work() {
               <Card key={String(name)}>
                 <View style={s.row}>
                   <Text>{name}</Text>
-                  <Text style={s.title}>{value ?? "—"}</Text>
+                  <Text style={s.title}>{value ?? "..."}</Text>
                 </View>
               </Card>
             ))}
@@ -340,7 +340,7 @@ function Work() {
               <Card>
                 <Text>{selected.status}</Text>
                 <Text style={s.small}>
-                  {selected.start_date} — {selected.end_date}
+                  {selected.start_date} to {selected.end_date}
                 </Text>
                 <Text style={s.small}>
                   Created {selected.created_at.slice(0, 10)}

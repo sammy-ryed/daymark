@@ -6,6 +6,7 @@ const app = createApp({
   key: process.env.SUPABASE_PUBLISHABLE_KEY ?? "",
   webOrigin: process.env.WEB_ORIGIN ?? "http://localhost:3000",
   production: process.env.NODE_ENV === "production",
+  vercelProxy: Boolean(process.env.VERCEL),
 });
 export const config = { api: { bodyParser: false, externalResolver: true } };
 export default function handler(req: NextApiRequest, res: NextApiResponse) {

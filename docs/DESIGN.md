@@ -8,7 +8,9 @@ The visual foundation is the user-supplied [Minimal Type Gallery](https://github
 
 - Unequal brand and account widths pulled the navigation away from the center. Desktop now uses equal outer grid columns. Mobile moves navigation onto its own full-width row.
 - The authentication screen created excess vertical scrolling. A header/content/footer grid now fills the viewport while allowing natural scrolling on smaller screens.
-- Task status changes required opening an editor. Native select controls now update status directly and remain keyboard accessible.
+- Task status changes required opening an editor. Themed Radix selects now update status directly with keyboard navigation, type-ahead, and collision-aware positioning.
+- The old circular completion control did not explain its action. A visible Mark done label now accompanies the check icon, with a clear Completed state.
+- Form scrollbars and native calendars felt disconnected from the visual system. Forms now have an internal scroll region, fixed action bar, and a themed DayPicker calendar with quick date choices.
 - The dashboard showed counts without clear next actions. The new Up next section orders unfinished work by deadline, with actionable overdue/today counts.
 - Long task collections lacked useful views. List/board switching, project and deadline filters, sorting, and CSV export share the same data.
 - Actions lacked visible success feedback. Live-region notifications confirm mutations; empty/error/loading states explain what to do next.

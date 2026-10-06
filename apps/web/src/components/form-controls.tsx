@@ -113,6 +113,7 @@ export function DatePicker({
   required?: boolean;
 }) {
   const [value, setValue] = useState(defaultValue);
+  const [dateError, setDateError] = useState("");
   const [open, setOpen] = useState(false);
   const [container, setContainer] = useState<HTMLElement>();
   const trigger = useRef<HTMLButtonElement>(null);
@@ -122,6 +123,7 @@ export function DatePicker({
   function choose(date: Date | undefined) {
     if (!date) return;
     setValue(localDay(date));
+    setDateError("");
     setMonth(date);
     setOpen(false);
   }
@@ -132,6 +134,7 @@ export function DatePicker({
         open={open}
         onOpenChange={(next) => {
           setContainer(trigger.current?.closest("dialog") ?? undefined);
+          if (next) setDateError("");
           setOpen(next);
         }}
       >
@@ -187,6 +190,7 @@ export function DatePicker({
               Type a date
               <input
                 aria-label={`Type ${label}`}
+                aria-invalid={Boolean(dateError)}
                 type="text"
                 inputMode="numeric"
                 placeholder="YYYY-MM-DD"
@@ -202,11 +206,18 @@ export function DatePicker({
                   ) {
                     setValue(input);
                     setMonth(date);
-                  }
+                    setDateError("");
+                  } else setDateError("Use a real date in YYYY-MM-DD format.");
                 }}
               />
             </label>
+            {dateError && (
+              <p className="message" role="alert">
+                {dateError}
+              </p>
+            )}
             <Popover.Close
+              disabled={Boolean(dateError)}
               className="calendar-close"
               aria-label="Close calendar"
             >

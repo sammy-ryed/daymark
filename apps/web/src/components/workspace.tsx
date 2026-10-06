@@ -706,7 +706,7 @@ export function Workspace() {
               <div className="project-summary">
                 <span className="status-pill">{selected.status}</span>
                 <span>
-                  {dateLabel(selected.start_date)} —{" "}
+                  {dateLabel(selected.start_date)} to{" "}
                   {dateLabel(selected.end_date)}
                 </span>
                 <span>Created {dateLabel(selected.created_at)}</span>

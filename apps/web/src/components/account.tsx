@@ -160,6 +160,7 @@ export function Account({ mode }: { mode: "profile" | "forgot" | "reset" }) {
                 <label>
                   Email address
                   <input
+                    suppressHydrationWarning
                     type="email"
                     name="email"
                     autoComplete="email"
@@ -215,7 +216,11 @@ export function Account({ mode }: { mode: "profile" | "forgot" | "reset" }) {
                 </p>
               )}
               {(mode !== "reset" || validLink) && (
-                <button className="primary" disabled={busy}>
+                <button
+                  suppressHydrationWarning
+                  className="primary"
+                  disabled={busy}
+                >
                   {busy
                     ? "Please wait..."
                     : mode === "profile"
