@@ -14,6 +14,8 @@ Evidence recorded on 6 October 2026. Latest verified application commit: [`74f60
 | GitHub Actions | Web/API checks passed for `74f6066` |
 | Vercel deployment | Successful, functions in Mumbai |
 | Same-origin API health | HTTP 200, configured true, locally and on Vercel |
+| Custom SMTP configuration | Gmail host, port 465 and Daymark sender persisted after dashboard reload |
+| Live recovery email | Deployed forgot-password request reached the owner's Gmail inbox at 11:19 PM IST on 6 October 2026 |
 | Unauthenticated production workspace request | HTTP 401 with `Cache-Control: no-store` |
 | Live Supabase anonymous access | Projects, tasks and dashboard RPC denied access |
 | Live two-user database isolation | Reads, updates, deletes, nested task insertion and dashboard isolation passed |
@@ -65,7 +67,7 @@ Web sign-in is a hosted-page capture. Web overview and board captures use isolat
 
 ## Remaining release limits
 
-- **Email:** The owner chose Supabase's default sender. Public signup and recovery delivery remain restricted; custom SMTP is required for broad public use. A delivered recovery email, credential reset and refresh across real token expiry have not been tested end to end.
+- **Email:** Custom Gmail SMTP replaced the default sender. Recovery email delivery to the owner's inbox was verified through the deployed form. The owner entered the app password directly in Supabase; it was not read or committed. Gmail is intended for personal mail and has sending limits, so reliable larger-scale delivery needs a transactional provider with a verified domain. Signup confirmation, delivery to other providers, the final credential reset and refresh across real token expiry remain unverified. The private inbox evidence is excluded from the public repository.
 - **Native release:** Upstream Expo advisories need reassessment before distribution. No APK, full iOS pass or five-minute demonstration recording is included.
 - **Accessibility:** Web focus and keyboard flows were checked, but full screen-reader and operating-system reduced-motion testing remain open. CSS reduced-motion fallbacks are implemented.
 - **Scale:** Caching and parallel reads are implementation improvements, not a measured performance benchmark. Large workspaces still need server pagination, virtualization and load testing. Application auth throttling is instance-local; Supabase Auth limits also apply.

@@ -64,7 +64,7 @@ API base URL: `https://daymark-by-sammy.vercel.app/api`.
 
 Vercel builds `apps/web` from GitHub `main`. Next.js serves Express through `/api/[...path]`, keeping browser cookies on the same origin. Functions run in Mumbai (`bom1`), near Supabase. Static assets use platform caching; private API responses use `Cache-Control: no-store`.
 
-**Email delivery is intentionally limited for now.** The owner chose to retain Supabase's default sender. It only delivers to pre-authorized Supabase team addresses and is not a public production email service. Public signup confirmation and recovery require [custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp). Existing confirmed accounts can sign in. Email confirmation remains enabled.
+**Authentication email uses custom Gmail SMTP.** Supabase sends through `smtp.gmail.com:465` with the display name Daymark. A password-reset request from the deployed app reached the owner's inbox on 6 October 2026. The app password is stored only in Supabase, never in the repository or client. Email confirmation remains enabled. This free setup suits a small demo; Gmail sending limits and Supabase's warning about personal SMTP deliverability still apply. Use a dedicated transactional provider with a verified domain before a larger public launch. Signup confirmation delivery and the final password-change step have not yet been verified end to end. See [Supabase SMTP configuration](https://supabase.com/docs/guides/auth/auth-smtp).
 
 ## Run locally
 
