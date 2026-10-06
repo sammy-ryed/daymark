@@ -1,74 +1,75 @@
 # Implementation verification
 
-Checks performed on 6 October 2026.
+Evidence recorded on 6 October 2026. Latest verified application commit: [`74f6066`](https://github.com/sammy-ryed/daymark/commit/74f6066). Documentation and screenshot changes do not change application behavior.
+
+## Automated and deployment checks
 
 | Check | Result |
 | --- | --- |
-| API, web, mobile TypeScript | Passed |
-| Contracts, API security, recovery validation, deadline filters, sorting, CSV safety | 22 tests passed |
-| Next.js production compilation | Passed after preserving module paths across the dependency junction |
-| Android Metro export | Passed, 1196 modules; output on D: |
+| API, web and mobile TypeScript | Passed |
+| Contracts, API security, recovery validation, deadline filters, sorting and CSV safety | 22 tests passed |
+| Next.js production build | Passed |
+| Android development bundle | HTTP 200, including Daymark routes and updated forms |
 | Expo dependency compatibility | Passed |
-| Live Supabase anonymous access | Projects, tasks, and dashboard RPC correctly denied access |
-| Live two-user database isolation | Reads, updates, deletes, nested task insertion, and dashboard isolation passed |
-| Owner mutation and counts | Owner could read and complete own task; dashboard count updated |
-| Test fixture cleanup | Database test used a rollback transaction; no fixture accounts or rows persisted |
-| Supabase Security Advisor | Zero errors and zero warnings after restricting the dashboard-generated RLS helper |
-| API health through the same-origin Next.js route | HTTP 200, configured true, locally and on Vercel |
-| Vercel production deployment | Ready in Mumbai; public login, profile, forgot-password, reset-password routes respond |
-| Private production data | Unauthenticated workspace request returns 401 and no-store |
-| GitHub Actions | Web/API checks passed on commit 0c6bd1f |
-| Browser login screen | Rendered with the requested typography and coral echo |
-| Narrow web layout | Inspected at 390-wide viewport; no horizontal document overflow |
+| GitHub Actions | Web/API checks passed for `74f6066` |
+| Vercel deployment | Successful, functions in Mumbai |
+| Same-origin API health | HTTP 200, configured true, locally and on Vercel |
+| Unauthenticated production workspace request | HTTP 401 with `Cache-Control: no-store` |
+| Live Supabase anonymous access | Projects, tasks and dashboard RPC denied access |
+| Live two-user database isolation | Reads, updates, deletes, nested task insertion and dashboard isolation passed |
+| Owner mutation and counts | Owner task completion updated the dashboard count |
+| Database test cleanup | Rollback transaction left no fixture accounts or rows |
+| Supabase Security Advisor | Zero errors and warnings after restricting the dashboard RLS helper |
 
-## Practical limits
+Four integration tests exercise the real Supabase SDK against an isolated local Auth protocol fixture. They cover HttpOnly/Secure cookies without token leakage in JSON, refresh when the access cookie is missing, profile updates using the verified user's JWT, and recovery validation before password updates. They send no email and create no real account.
 
-The signed-in production workspace and profile were verified in the user's browser. Saving the existing display name returned a success notice without changing its content, and the browser reported no errors. A complete same-account web/mobile session, physical Android Expo Go interaction, TalkBack, and operating-system reduced-motion emulation have not been verified. Mobile secure storage still needs device testing. The CSS reduced-motion fallback is implemented.
+The last web/API production dependency audit reported zero vulnerabilities. The full workspace reported 29 transitive Expo findings: 19 high, 10 moderate and no critical. Incompatible Expo changes proposed by npm were not applied. These are dated results, not a guarantee about future advisories.
 
-Public repository: https://github.com/sammy-ryed/daymark. Live site: https://daymark-by-sammy.vercel.app. No distributable APK or five-minute recording has been produced. CLI migration history is not synchronized; the two migrations were applied through Supabase SQL Editor.
+## Web behavior
 
-The Daymark redesign adds task board/list views, inline status editing, deadline/project filters, sorting, safe CSV exports, and a next-actions dashboard. Registration was reloaded in Brave without console hydration errors. The desktop auth screen fits its viewport; the 390-wide layout has no horizontal document overflow. Native scrollbar behavior is preserved with a thinner neutral treatment. Authentication form controls tolerate browser-extension attributes locally rather than suppressing hydration checks on the whole page.
+The signed-in production workspace and profile were inspected in the owner's browser. Saving the existing display name succeeded without changing it. Registration reloaded without hydration errors. Recovery and profile routes responded on the deployment.
 
-An isolated in-memory API fixture on localhost:3100 was used to inspect the actual Next.js dashboard and task components without signing into or writing to Supabase. Verified task creation, inline status mutation and board movement, overdue shortcut, clearing filters and URL state, project filtering, modal initial focus, Escape/focus restoration, Alt + N, and a 390-wide single-column board. No browser console errors were reported in this fixture session. Desktop navigation and header centers differed by less than one CSS pixel. These checks validate frontend behavior, not the complete authenticated Supabase flow.
+An isolated in-memory API fixture exercised the actual Next.js UI without writing to Supabase. Verified flows included task creation, inline status changes and board movement, overdue shortcuts, clearing filters and URL state, project filtering, keyboard selection, quick date selection, initial dialog focus, Escape and focus restoration, and Alt + N. No console errors were reported in that fixture session. Desktop navigation and header centers differed by less than one CSS pixel.
 
-The web/API production audit reports zero vulnerabilities. The full workspace still reports 29 transitive findings (19 high, 10 moderate, no critical) in the Expo tree. npm proposed incompatible Expo changes for some findings; those changes were not applied. Reassess upstream fixes before distributing the native app. Vitest and shell-quote were updated to remove newly reported critical development-tool findings.
+Dirty Cancel and Escape actions opened the discard prompt. Keep editing retained the draft; Discard closed without saving; unchanged forms closed directly. Browser refresh/tab closing uses the browser's native warning. SPA browser Back protection is not claimed.
 
-The dev-server routing issue was caused by a junction for `.next`; restoring a local `.next` fixed the rendered routes. Main dependencies, npm cache, and exported Android bundle remain on D:. Avoid running production builds concurrently with the dev server against the same `.next` folder.
+### Short screens and keyboards
 
-## Latest UI and performance checks
+Web dialogs follow VisualViewport height and offset, with scrolling fields and persistent actions. Inputs use at least 1rem on phones to avoid iOS focus zoom. The viewport requests content resizing on supported browsers.
 
-Themed Radix dropdowns and DayPicker calendars replace native controls. At a measured 390 CSS-pixel viewport, the calendar occupies x=24 through x=368 without document overflow. Keyboard ArrowDown and Enter changed priority from Medium to High. Tomorrow selected the correct date, and submitting the modal created a task in the isolated fixture. Focus returned to the creation button after closing. The calendar and select portals render inside the native dialog's top layer. A narrower 320-width attempt did not apply correctly through the browser viewport tool and is not counted as verified.
+At both 390 x 360 and 320 x 360 CSS pixels, the project dialog measured top 8 / bottom 352, Save remained at bottom 343.2, and the document had no horizontal overflow. At 390 x 360, the calendar stayed between y=11.8 and y=208.2 and scrolled its 537px content internally. Login at 320 x 360 remained vertically scrollable with no horizontal overflow; its password toggle changed the input type successfully.
 
-The production build was inspected on desktop with no browser console errors in the fixture session. README screenshots are actual captures: the login page is hosted, while dashboard and board data are isolated fixtures. Browser screenshot capture for the emulated phone was unreliable, so no misleading mobile image is published.
+These are reduced-height browser checks, not physical keyboard emulation.
 
-Workspace loading now uses one authenticated request and parallel data reads. Private query data is cached in memory for 60 seconds. Status mutations update the cache immediately and restore the snapshot on failure. These are implementation improvements, not a measured production performance benchmark. Load testing and large-dataset virtualization are not complete.
+## Expo Go on Android
 
-The build initially failed because stale nested React copies survived the dependency-directory junction. Removing only those generated copies and pinning a shared 19.2.3 runtime fixed the build. A clean Linux Vercel build and GitHub Actions run both passed.
+The owner supplied physical Android captures showing the current Daymark overview, project details and task list loading live workspace data. Three unedited images are included in the [README](../README.md#in-your-pocket):
 
-The owner explicitly chose to keep Supabase's default email sender. Site URL and the exact production recovery redirect are configured. Public email delivery remains restricted to pre-authorized team addresses; custom SMTP is required before broad public signup. A real delivered recovery email, credential reset, and access-token refresh across its expiry have not been tested end to end.
+- [Overview](images/expo-overview.jpg)
+- [Project details](images/expo-project.jpg)
+- [Task list](images/expo-tasks.jpg)
 
-Four additional integration tests exercise the real Supabase SDK against an isolated local Auth protocol fixture. They verify HttpOnly/Secure cookie issuance without token leakage in JSON, refresh when the access cookie is missing, a profile metadata update using the verified user's JWT, and recovery-token validation before password update. They send no email and create no real account. These supplement the browser and live database checks; they do not replace real email delivery testing.
+The displayed sample projects and humorous tasks were created explicitly at the owner's request. These captures confirm rendering and data loading, not every interaction or persistence edge case.
 
-### Expo Go mobile update, 6 October 2026
+The native implementation includes project creation/editing, task management, full-screen selection sheets, a local-date calendar, profile editing and password recovery through the web flow. Save remains outside the scrolling editor. Task completion is optimistic and rolls back on failure. Mobile reads the workspace in one request, preserves data between tabs, uses a 60-second foreground freshness window and renders lists in batches of 30.
 
-The native app uses the Daymark brand, compact overview metrics, upcoming tasks, project progress, explicit task completion controls, and a four-tab navigation bar. Project and task forms use full-screen selection sheets and a local-date calendar with quick dates. Save stays outside the scrolling form. Profile editing is available in Account; password recovery opens the secure web flow.
+Android auth, workspace and editor screens use bounded keyboard-aware layouts. Shared scrolling reveals focused inputs after keyboard/layout changes and allows dragging while the keyboard stays open. Auth includes Next/Done actions, password visibility, disabled credential autocorrect and keyboard dismissal on submit. Standalone Android configuration uses resize mode.
 
-Mobile loads `/api/workspace` in one request, preserves data between tabs, skips foreground reloads for 60 seconds, and renders long lists in batches of 30. Task completion updates immediately and rolls back on request failure. Data is kept in memory, scoped to the signed-in screen.
+Project/task editors and profile navigation guard dirty changes. Android Back uses the same editor confirmation. Force-closing the app cannot be intercepted. Physical testing of keyboard scrolling, discard confirmations, SecureStore persistence and token expiry is still pending. iOS, large system text and screen-reader traversal have not been verified. Native modal transitions are static.
 
-The API reads public filters from the request URL so Next.js catch-all `path` metadata cannot enter strict project/task filter validation. Unknown URL filters and duplicate filters still fail validation.
+The explicit native `./app` entry fixes route discovery across the C:/D: dependency junction. API filters now come from the request URL, excluding Next.js catch-all `path` metadata while still rejecting unknown or duplicate public filters.
 
-Verification: 22 automated tests passed; API, mobile and web typechecks passed; the Android development bundle returned HTTP 200 and includes the Daymark routes, workspace loading, calendar and profile controls. Full physical-device interaction testing, iOS layout, large system text, and screen-reader traversal remain unverified. Motion is disabled for modal transitions, so reduced-motion users receive the same static interface.
+## Screenshot provenance
 
-### Unsaved edits
+Web sign-in is a hosted-page capture. Web overview and board captures use isolated fixture data. Expo Go screenshots are owner-provided physical Android captures with authorized sample content. None are design mockups. Private account/profile captures and local-network QR codes are not published.
 
-Project and task editors ask before discarding changed fields on web Close, Cancel and Escape, and on mobile Close and Android Back. Unchanged forms close directly; successful saves bypass the prompt. Profile navigation also guards unsaved name changes. Web refresh/tab closing uses the browser's native unsaved-changes warning. Force-closing a mobile app cannot be intercepted.
+## Remaining release limits
 
-Browser verification confirmed dirty Cancel/Escape, Keep editing retaining a draft, Discard closing without saving, and unchanged dismissal using isolated fixture data. Mobile bundle and TypeScript checks passed; physical-device confirmation testing remains pending.
+- **Email:** The owner chose Supabase's default sender. Public signup and recovery delivery remain restricted; custom SMTP is required for broad public use. A delivered recovery email, credential reset and refresh across real token expiry have not been tested end to end.
+- **Native release:** Upstream Expo advisories need reassessment before distribution. No APK, full iOS pass or five-minute demonstration recording is included.
+- **Accessibility:** Web focus and keyboard flows were checked, but full screen-reader and operating-system reduced-motion testing remain open. CSS reduced-motion fallbacks are implemented.
+- **Scale:** Caching and parallel reads are implementation improvements, not a measured performance benchmark. Large workspaces still need server pagination, virtualization and load testing. Application auth throttling is instance-local; Supabase Auth limits also apply.
+- **Database operations:** Existing migrations were applied through SQL Editor. CLI migration history is not synchronized; do not blindly reapply them.
+- **Local builds:** Dependencies and caches live on D:, while `.next` must stay local on C:. Stop the development server before a production build against the same `.next` folder. Consistent React versions and preserved module paths are required across the junction.
 
-### Keyboard and short-screen audit, 6 October 2026
-
-Fixed missing Android keyboard avoidance on the auth screen and added the same bounded layout to the workspace/profile screen. Shared native form scrolling keeps the keyboard open during a drag and reveals the focused input after keyboard/layout changes. Modal editors retain reachable footer actions. Auth adds Next/Done actions, disabled autocorrect on credentials, a password visibility control, and keyboard dismissal on submit. Android standalone configuration uses resize mode; Expo Go behavior still requires device confirmation.
-
-Web dialogs now follow VisualViewport height and offset, with independently scrolling fields and persistent actions. The viewport requests content resizing on supported browsers; phone inputs remain at 1rem to avoid iOS focus zoom. At 390x360 and 320x360, the project dialog measured top 8 / bottom 352, Save remained at bottom 343.2, and document overflow was absent. At 390x360 the calendar stayed between 11.8 and 208.2 and scrolled its 537px content internally. Login at 320x360 had no horizontal overflow, remained vertically scrollable, and the password toggle changed the input type successfully. These are reduced-height browser checks, not physical keyboard emulation. Android and iOS keyboard interaction must still be verified on devices.
-
-All 22 tests, all workspace typechecks, and the production build passed.
+[Public repository](https://github.com/sammy-ryed/daymark) · [Live application](https://daymark-by-sammy.vercel.app)

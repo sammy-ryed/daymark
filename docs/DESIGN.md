@@ -30,3 +30,15 @@ Taste configuration: design variance 5, motion intensity 3, visual density 5. Th
 - Overdue and upcoming filters exclude completed work and use local calendar dates.
 - CSV exports only the current filtered/sorted task view and neutralizes formula prefixes.
 - Dialogs support Escape and restore focus. Saving cannot be dismissed accidentally.
+- Changed project, task and profile fields trigger a discard confirmation. Keep editing preserves the current draft; unchanged forms close directly.
+- Web dialog fields scroll inside the visible viewport while actions remain reachable. Phone inputs use at least 1rem; short authentication screens prioritize the form.
+
+## Native companion
+
+Expo Go carries the white, near-black and coral palette into a compact four-tab workspace. Native typography uses the system font, with a shared spacing scale expressed in React Native logical units. Web rem units are not valid native style values.
+
+Two-column overview metrics keep upcoming work close to the top. Explicit Mark done, Edit and Delete labels explain task actions. Selection sheets and a local-date calendar replace small dropdown menus. Safe-area padding, keyboard-aware scrolling, password visibility and persistent editor actions support phone use.
+
+Loading and empty states can use brief, clean humor. Errors, deletion warnings and discard confirmations keep their wording direct. Sample projects and tasks are clearly described as samples.
+
+Native modal transitions remain static. The physical Android screenshots in the README document the implemented interface; the verification document distinguishes those captures from interaction checks still awaiting device testing.

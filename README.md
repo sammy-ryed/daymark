@@ -21,6 +21,7 @@ See projects, pending work, upcoming deadlines, and progress without opening eve
 - Switch between list and board layouts; your layout preference is remembered.
 - Use themed dropdowns with keyboard navigation and a calendar with Today, Tomorrow, and In a week shortcuts.
 - Keep Save within reach in scrollable mobile forms.
+- Confirm before discarding unsaved project, task, or profile edits. Keep editing preserves the draft.
 - Edit your display name, inspect your account email, and request a password reset.
 - See task status changes immediately. Failed saves restore the previous state.
 - Navigate with visible focus, accessible labels, and shortcuts: **Alt + N** creates, **Alt + K** searches.
@@ -28,13 +29,38 @@ See projects, pending work, upcoming deadlines, and progress without opening eve
 
 ![Daymark task board with explicit completion actions](docs/images/task-board.jpg)
 
-Screenshots show the actual application. The overview and board use an isolated sample workspace for documentation, with no real user data or seeded production records.
+These web screenshots show the actual application. The overview and board use an isolated sample workspace for documentation.
+
+## In your pocket
+
+The Expo Go companion shares your account, projects, and tasks with the website. These are unedited captures from a physical Android phone, supplied by the project owner on 6 October 2026. The example projects and tasks were created explicitly for the demo.
+
+<p align="center">
+  <img src="docs/images/expo-overview.jpg" width="240" alt="Daymark in Android Expo Go: overview metrics and upcoming tasks" />
+  <img src="docs/images/expo-project.jpg" width="240" alt="Daymark in Android Expo Go: project details, task search and project editing" />
+  <img src="docs/images/expo-tasks.jpg" width="240" alt="Daymark in Android Expo Go: task list with clear Mark done, Edit and Delete actions" />
+</p>
+
+**Overview · Project details · Tasks**
+
+Native forms include date pickers, full-screen selection sheets, password visibility, keyboard-aware scrolling, and unsaved-change prompts. Task completion updates immediately, with rollback if the request fails. A little clean humor keeps the sample workspace human: even closing 37 browser tabs counts as progress.
+
+| Capability | Web | Expo Go |
+| --- | --- | --- |
+| Overview, project details, task search and filters | Yes | Yes |
+| Create and edit projects | Yes | Yes |
+| Delete projects | Yes | Not yet |
+| Create, edit, complete and delete tasks | Yes | Yes |
+| Edit profile and guard unsaved edits | Yes | Yes |
+| Password recovery | Web flow | Opens the web flow |
+| Task board, sorting and CSV export | Yes | Not yet |
+| Keyboard shortcuts | Alt + N / Alt + K | Not applicable |
 
 ## Live deployment
 
-**Web:** https://daymark-by-sammy.vercel.app  
-**API:** https://daymark-by-sammy.vercel.app/api  
-**Health:** https://daymark-by-sammy.vercel.app/api/health
+[Website](https://daymark-by-sammy.vercel.app) · [API health](https://daymark-by-sammy.vercel.app/api/health) · [GitHub Actions](https://github.com/sammy-ryed/daymark/actions)
+
+API base URL: `https://daymark-by-sammy.vercel.app/api`.
 
 Vercel builds `apps/web` from GitHub `main`. Next.js serves Express through `/api/[...path]`, keeping browser cookies on the same origin. Functions run in Mumbai (`bom1`), near Supabase. Static assets use platform caching; private API responses use `Cache-Control: no-store`.
 
@@ -63,14 +89,39 @@ Use this installer instead of reinstalling over the `node_modules` junction. Kee
 
 ## Expo Go
 
-The Android companion uses the same accounts and API. It supports project viewing, task management, filters, dashboard metrics, and pull-to-refresh.
+Keep your computer and phone on the same Wi-Fi. Start Metro from the repository root:
 
 ```sh
 cp apps/mobile/.env.example apps/mobile/.env
-npm run mobile
+npm run start -w @project/mobile -- --go --lan
 ```
 
-Set `EXPO_PUBLIC_API_URL=https://daymark-by-sammy.vercel.app/api` to use the hosted API. Alternatively, use `http://YOUR_COMPUTER_LAN_IP:4000/api` with the local API running. Scan Metro's QR code with Expo Go compatible with SDK 57. Restart Metro after changing environment variables. Physical Android verification and an APK are still outstanding.
+Set `EXPO_PUBLIC_API_URL=https://daymark-by-sammy.vercel.app/api` to use the hosted API. Alternatively, use `http://YOUR_COMPUTER_LAN_IP:4000/api` with the local API running. `localhost` on a phone points to the phone, not your computer.
+
+Open Expo Go compatible with SDK 57 and scan the QR code printed by Metro. Keep Metro running. The QR code is generated for your current network, so there is no permanent QR code in this README. This setup uses local Wi-Fi, with no public tunnel.
+
+If changes appear stale, stop Metro and restart with:
+
+```sh
+npm run start -w @project/mobile -- --go --lan --clear
+```
+
+Restart after changing environment variables. For connection failures, check that both devices share the network and Windows allows Node.js on your private network. If Metro advertises the wrong adapter, set `REACT_NATIVE_PACKAGER_HOSTNAME` to the computer's current LAN address in `apps/mobile/.env.local`. The native entry explicitly resolves `./app` to support dependencies on a separate drive.
+
+Physical Android captures confirm the updated app renders live workspace data. Full keyboard, accessibility, session-expiry and iOS testing remain open. No distributable APK is included.
+
+## Repository map
+
+| Path | Responsibility |
+| --- | --- |
+| `apps/web` | Next.js website and same-origin API adapter |
+| `apps/mobile` | Expo Router screens and native controls |
+| `apps/api` | Express authentication, validation and data routes |
+| `packages/contracts` | Shared validation and types |
+| `packages/api-client` | Shared API client |
+| `supabase/migrations` | Database schema and ownership policies |
+| `scripts` | Local setup and database verification helpers |
+| `docs` | Design decisions, verification evidence and screenshots |
 
 ## Supabase and authentication
 
@@ -89,7 +140,7 @@ Web access and refresh tokens use HttpOnly, SameSite cookies with Secure enabled
 ## Performance and security
 
 - One workspace request replaces the old profile-to-three-request loading sequence. Independent database reads run in parallel.
-- React Query retains private data in memory with a 60-second freshness window. Logout clears it. Private workspace data is not persisted in localStorage.
+- Web React Query retains private data in memory with a 60-second freshness window. Logout clears it. Mobile keeps workspace data in memory, skips foreground reloads for 60 seconds and displays long lists in batches of 30. Private workspace data is not persisted in localStorage.
 - Status changes are optimistic, with rollback on failure and background reconciliation.
 - Workspace reads page through PostgREST results to avoid silent row truncation. Search remains client-side; very large workspaces need server pagination and virtualized lists before scale testing.
 - Schemas validate every mutation. Supabase RLS enforces ownership independently of the UI.
@@ -139,9 +190,3 @@ erDiagram
   PROJECTS { uuid id PK uuid owner_id FK text name text status date start_date date end_date }
   TASKS { uuid id PK uuid project_id FK text name text status text priority date due_date }
 ```
-
-### Expo Go on your phone
-
-The native Daymark app includes project creation/editing, task management, a compact overview, date selection, profile editing, and password recovery through the web app. It uses the same live account and data as the website.
-
-Run `npm run mobile -- --go --lan` and connect your phone to the computer's Wi-Fi. Open the displayed QR code in Expo Go. The mobile entry explicitly resolves `./app`, which also supports this workspace's dependencies on a separate drive. Set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to your deployed API URL, then restart Expo after changing it. If route changes appear stale, restart with `npm run mobile -- --go --lan --clear`.
