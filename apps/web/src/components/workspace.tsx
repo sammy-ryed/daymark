@@ -267,6 +267,7 @@ export function Workspace() {
   const [modal, setModal] = useState<{
     kind: "project" | "task";
     item?: Project | Task;
+    status?: Task["status"];
   } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     kind: "project" | "task";
@@ -420,6 +421,7 @@ export function Workspace() {
     );
   }
   async function changeStatus(task: Task, nextStatus: Task["status"]) {
+    const focusedControl = document.activeElement?.id;
     setActing(true);
     setActionError("");
     try {
@@ -431,6 +433,11 @@ export function Workspace() {
         }),
       });
       await reload();
+      if (focusedControl === `task-status-${task.id}`) {
+        requestAnimationFrame(() =>
+          document.getElementById(focusedControl)?.focus(),
+        );
+      }
       setToast(
         nextStatus === "Completed"
           ? "Task completed. One step forward."
@@ -471,6 +478,13 @@ export function Workspace() {
     try {
       localStorage.setItem("daymark.task-view.v1", value);
     } catch {}
+  }
+  function chooseDue(value: DueFilter) {
+    setDue(value);
+    const url = new URL(window.location.href);
+    if (value) url.searchParams.set("due", value);
+    else url.searchParams.delete("due");
+    window.history.replaceState(window.history.state, "", url);
   }
   function exportTasks() {
     const url = URL.createObjectURL(
@@ -695,7 +709,7 @@ export function Workspace() {
                 <div className="collection-heading">
                   <h2>
                     {overview
-                      ? "Active projects"
+                      ? "Projects by deadline"
                       : taskView
                         ? "Tasks"
                         : "All projects"}{" "}
@@ -802,7 +816,9 @@ export function Workspace() {
                         <span className="sr-only">Filter by due date</span>
                         <select
                           value={due}
-                          onChange={(e) => setDue(e.target.value as DueFilter)}
+                          onChange={(e) =>
+                            chooseDue(e.target.value as DueFilter)
+                          }
                         >
                           <option value="">Any due date</option>
                           <option value="overdue">Overdue</option>
@@ -846,7 +862,7 @@ export function Workspace() {
                           setSearch("");
                           setStatus("");
                           setPriority("");
-                          setDue("");
+                          chooseDue("");
                           setProjectFilter("");
                         }}
                       >
@@ -868,9 +884,10 @@ export function Workspace() {
                           setDeleteTarget({ kind: "task", item })
                         }
                         changeStatus={changeStatus}
-                        create={() =>
+                        create={(status) =>
                           setModal({
                             kind: allProjects.length ? "task" : "project",
+                            status,
                           })
                         }
                       />
@@ -1026,7 +1043,8 @@ export function Workspace() {
           kind={modal.kind}
           item={modal.item}
           projects={allProjects}
-          projectId={selectedId}
+          projectId={selectedId || projectFilter || undefined}
+          defaultStatus={modal.status}
           close={() => setModal(null)}
           saved={async () => {
             await reload();
@@ -1074,6 +1092,7 @@ function Dialog({
     const previous = document.activeElement as HTMLElement;
     const dialog = ref.current;
     dialog?.showModal();
+    dialog?.querySelector<HTMLElement>("input, textarea, select")?.focus();
     return () => {
       dialog?.close();
       previous?.focus();
@@ -1107,6 +1126,7 @@ function Editor({
   item,
   projects,
   projectId,
+  defaultStatus,
   close,
   saved,
 }: {
@@ -1114,6 +1134,7 @@ function Editor({
   item?: Project | Task;
   projects: Project[];
   projectId?: string;
+  defaultStatus?: Task["status"];
   close: () => void;
   saved: () => Promise<unknown>;
 }) {
@@ -1204,7 +1225,9 @@ function Editor({
                 name="status"
                 defaultValue={
                   item?.status ??
-                  (kind === "project" ? "Not Started" : "Pending")
+                  (kind === "project"
+                    ? "Not Started"
+                    : (defaultStatus ?? "Pending"))
                 }
               >
                 {(kind === "project" ? projectStatuses : taskStatuses).map(

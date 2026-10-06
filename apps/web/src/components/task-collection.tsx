@@ -16,7 +16,7 @@ type Props = {
   edit: (task: Task) => void;
   remove: (task: Task) => void;
   changeStatus: (task: Task, status: Task["status"]) => void;
-  create: () => void;
+  create: (status?: Task["status"]) => void;
 };
 export function TaskCollection(props: Props) {
   const { tasks, view, create } = props;
@@ -45,7 +45,7 @@ export function TaskCollection(props: Props) {
                 No {status.toLowerCase()} tasks in this view.
               </p>
             )}
-            <button className="board-add" onClick={create}>
+            <button className="board-add" onClick={() => create(status)}>
               <Plus size={16} /> Add task
             </button>
           </section>
@@ -106,6 +106,7 @@ function TaskItem({
       <label className="inline-status">
         <span className="sr-only">Status for {task.name}</span>
         <select
+          id={`task-status-${task.id}`}
           value={task.status}
           disabled={busy}
           onChange={(e) => changeStatus(task, e.target.value as Task["status"])}

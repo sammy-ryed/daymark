@@ -1,4 +1,4 @@
-﻿# Project Management System Implementation Plan
+# Daymark implementation plan
 
 Build the PDF's project and task management system with Next.js, Expo Go, and one Express REST API backed by Supabase Auth and PostgreSQL. Source stays in C:\Users\lenovo\Desktop\project. Main dependencies, npm downloads, and Android export output use D:\codex-project-deps\project-management. The Next.js .next cache stays local because a cross-drive cache junction broke routing.
 
@@ -34,7 +34,7 @@ The web entry heading has one semantic heading and hidden decorative slices with
 3. Implemented authentication and required REST operations, validation, protected requests, and error states.
 4. Implemented web auth, dashboard, project and task screens, forms, confirmations, search/filter, and refresh.
 5. Implemented the Expo auth/workspace/task flows and secure storage integration.
-6. Passed type checks, 9 contract/API tests, Expo compatibility checks, Android bundle export, live database isolation tests, and a production web build. Browser auth screen inspected at wide and narrow widths.
+6. Passed type checks, 13 contract/API and task-view tests, Expo compatibility checks, Android bundle export, live database isolation tests, and a production web build. Browser auth screen inspected at wide and narrow widths.
 
 ## Remaining acceptance and delivery
 
@@ -44,7 +44,7 @@ The web entry heading has one semantic heading and hidden decorative slices with
 4. Test reduced-motion preference at runtime and compare the display effect if the missing screenshot becomes available.
 5. Review compatible fixes for the documented Expo transitive dependency advisories. Add pagination before datasets exceed the Supabase configured response cap.
 6. Authenticate Supabase CLI and reconcile migration history. Do not reapply schema SQL to the existing project.
-7. Prepare full OpenAPI output, deployment configuration, public repository, web/API URLs, Android APK or stable Expo distribution link, and the PDF's five-minute screen recording. Use only test data. No publishing has been performed in this implementation stage.
+7. Prepare full OpenAPI output, deployment configuration, hosted web/API URLs, Android APK or stable Expo distribution link, and the PDF's five-minute screen recording. The public Daymark source repository has been published; hosting and recording remain separate delivery steps.
 
 ## Session and operational choices
 
@@ -52,4 +52,8 @@ Access tokens expire at Supabase's configured deadline; refresh-token rotation i
 
 A physical phone uses the computer's LAN address or deployed HTTPS API, never its own localhost. The local mobile environment is configured for 192.168.1.12:4000 and needs updating if that address changes. The Expo Metro tunnel alone does not expose Express. Keep secrets out of client environment variables; the app requires only the project URL and publishable key on the API server.
 
-Optional bonuses remain Docker, CI/CD, sorting, audit logs, roles, refresh tokens, push notifications, offline viewing, iOS support, and mobile project editing. Required PDF behavior takes priority. See docs/VERIFICATION.md for actual evidence and unverified behavior.
+Optional bonuses remain Docker, CI/CD, audit logs, roles, refresh tokens, push notifications, offline viewing, iOS support, and mobile project editing. Sorting is implemented on web. Required PDF behavior takes priority. See docs/VERIFICATION.md for actual evidence and unverified behavior.
+
+## Daymark redesign
+
+Applied the supplied Minimal Type Gallery skill together with Leonxlnx/taste-skill. Added centered responsive navigation, thinner native scrollbars, board/list views, inline status changes, deadline/project filters, sorting, filtered CSV export, next-actions dashboard, success feedback, and keyboard shortcuts. Created and published the public repository at https://github.com/sammy-ryed/daymark. See docs/DESIGN.md and docs/VERIFICATION.md for design choices and test scope.
