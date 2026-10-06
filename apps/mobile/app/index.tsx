@@ -7,15 +7,20 @@ import {
   AppState,
   BackHandler,
   KeyboardAvoidingView,
+  Keyboard,
+  TextInput,
   Platform,
   RefreshControl,
-  ScrollView,
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useSession } from "../src/session";
 import {
+  KeyboardScroll,
   confirmDiscard,
   Button,
   Card,
@@ -59,14 +64,20 @@ export default function Home() {
   return session.user ? <Work key={session.user.id} /> : <Auth />;
 }
 function Auth() {
+  const insets = useSafeAreaInsets();
   const { api, authenticate, message, retry } = useSession();
   const [register, setRegister] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
   const [fullName, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   async function submit() {
+    if (busy) return;
+    Keyboard.dismiss();
     const parsed = (register ? registerSchema : credentialsSchema).safeParse({
       email,
       password,
@@ -94,13 +105,11 @@ function Auth() {
   return (
     <SafeAreaView style={s.screen}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={insets.top}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={s.content}
-        >
+        <KeyboardScroll>
           <Brand />
           <Text style={[s.title, { fontSize: 52 }]}>
             Your work.{`\n`}In focus
@@ -117,10 +126,19 @@ function Auth() {
                 value={fullName}
                 onChangeText={setName}
                 autoComplete="name"
+                maxLength={120}
+                returnKeyType="next"
+                submitBehavior="submit"
+                onSubmitEditing={() => emailRef.current?.focus()}
               />
             )}
             <Field
               label="Email address"
+              inputRef={emailRef}
+              autoCorrect={false}
+              returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => passwordRef.current?.focus()}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -131,10 +149,18 @@ function Auth() {
               label="Password"
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              inputRef={passwordRef}
+              secureTextEntry={!showPassword}
+              autoCorrect={false}
+              maxLength={72}
+              returnKeyType="done"
+              onSubmitEditing={submit}
               autoCapitalize="none"
               autoComplete={register ? "new-password" : "current-password"}
             />
+            <Button onPress={() => setShowPassword((v) => !v)}>
+              {showPassword ? "Hide password" : "Show password"}
+            </Button>
             {error ? (
               <Text accessibilityRole="alert" style={s.error}>
                 {error}
@@ -169,12 +195,13 @@ function Auth() {
             )}
             {message && <Button onPress={retry}>Retry connection</Button>}
           </Card>
-        </ScrollView>
+        </KeyboardScroll>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 function Work() {
+  const insets = useSafeAreaInsets();
   const { user, api, logout } = useSession();
   const { width, fontScale } = useWindowDimensions();
   const lastLoaded = useRef(0);
@@ -327,316 +354,328 @@ function Work() {
   );
   return (
     <SafeAreaView style={s.screen}>
-      <View
-        style={[
-          s.row,
-          { padding: 16, borderBottomWidth: 1, borderBottomColor: colors.line },
-        ]}
+      <KeyboardAvoidingView
+        keyboardVerticalOffset={insets.top}
+        style={{ flex: 1, minHeight: 0 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <Brand />
-        <Text style={s.small}>Your workspace</Text>
-      </View>
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        contentContainerStyle={s.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={load}
-            tintColor={colors.ink}
-          />
-        }
-      >
-        {selected && (
-          <Button
-            onPress={() => {
-              setSelected(null);
-              setStatus("");
-            }}
-          >
-            ← All projects
-          </Button>
-        )}
-        <Text style={s.title}>{selected?.name ?? `${tab}.`}</Text>
-        <Text style={s.subtitle}>
-          {selected?.description ??
-            (tab === "Overview"
-              ? `Welcome back, ${user?.fullName.split(" ")[0] || "there"}.`
-              : tab === "Projects"
-                ? "The committee in your head has talked enough."
-                : tab === "Tasks"
-                  ? "Big ambitions. Manageable little checkboxes."
-                  : "Make Daymark yours.")}
-        </Text>
-        {notice ? (
-          <Text accessibilityLiveRegion="polite" style={s.subtitle}>
-            {notice}
-          </Text>
-        ) : null}
-        {error ? (
-          <>
-            <Text style={s.error} accessibilityRole="alert">
-              {error}
-            </Text>
-            <Button onPress={load}>Try again</Button>
-          </>
-        ) : null}
-        {tab === "Overview" && (
-          <>
-            <View style={s.wrap}>
-              {[
-                ["Projects", stats?.totalProjects],
-                [
-                  "Open tasks",
-                  tasks.filter((t) => t.status !== "Completed").length,
-                ],
-                ["Completed", stats?.completedTasks],
-                ["In progress", stats?.projectsInProgress],
-              ].map(([label, value]) => (
-                <View
-                  key={String(label)}
-                  style={[
-                    s.metric,
-                    (width < 350 || fontScale > 1.3) && { flexBasis: "100%" },
-                  ]}
-                >
-                  <Text style={s.small}>{label}</Text>
-                  <Text style={s.metricNumber}>{stats ? value : "..."}</Text>
-                </View>
-              ))}
-            </View>
-            <View style={s.row}>
-              <Text style={s.itemTitle}>Up next</Text>
-              <Button onPress={() => go("Tasks")}>All tasks</Button>
-            </View>
-            {tasks
-              .filter((t) => t.status !== "Completed")
-              .sort((a, b) => a.due_date.localeCompare(b.due_date))
-              .slice(0, 3)
-              .map((t) => (
-                <Card key={t.id}>
-                  <Text style={s.eyebrow}>
-                    {t.due_date < localDate()
-                      ? "OVERDUE"
-                      : t.due_date === localDate()
-                        ? "DUE TODAY"
-                        : "COMING UP"}
-                  </Text>
-                  <Text style={s.itemTitle}>{t.name}</Text>
-                  <Text style={s.small}>
-                    {t.projects?.name} · {t.due_date}
-                  </Text>
-                  <Button primary disabled={busy} onPress={() => complete(t)}>
-                    Mark done
-                  </Button>
-                </Card>
-              ))}
-            {stats && !tasks.some((t) => t.status !== "Completed") && (
-              <Card>
-                <Text style={s.itemTitle}>A little breathing room.</Text>
-                <Text style={s.subtitle}>
-                  Your to-do list has nothing on you. Literally.
-                </Text>
-              </Card>
-            )}
-            <View style={s.wrap}>
-              <Button
-                primary
-                onPress={() =>
-                  projects.length ? setEditor({}) : setProjectEditor({})
-                }
-              >
-                {projects.length ? "New task" : "Create first project"}
-              </Button>
-              <Button onPress={() => go("Projects")}>View projects</Button>
-            </View>
-          </>
-        )}
-        {tab === "Account" && <Account leaveRef={accountLeave} />}
-        {(tab === "Projects" || tab === "Tasks") && (
-          <>
-            <Field
-              label={`Search ${taskView ? "tasks" : "projects"}`}
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Find something…"
+        <View
+          style={[
+            s.row,
+            {
+              padding: 16,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.line,
+            },
+          ]}
+        >
+          <Brand />
+          <Text style={s.small}>Your workspace</Text>
+        </View>
+        <KeyboardScroll
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={load}
+              tintColor={colors.ink}
             />
-            <Button onPress={() => setFiltersOpen(!filtersOpen)}>
-              {filtersOpen
-                ? "Hide filters"
-                : `Filters${status || priority ? " (active)" : ""}`}
+          }
+        >
+          {selected && (
+            <Button
+              onPress={() => {
+                setSelected(null);
+                setStatus("");
+              }}
+            >
+              ← All projects
             </Button>
-            {filtersOpen && (status || priority) && (
-              <Button
-                onPress={() => {
-                  setStatus("");
-                  setPriority("");
-                }}
-              >
-                Clear filters
-              </Button>
-            )}
-            {filtersOpen && (
-              <Choices
-                label="Status"
-                values={["", ...(taskView ? taskStatuses : projectStatuses)]}
-                value={status}
-                onChange={setStatus}
-              />
-            )}
-            {taskView && (
-              <>
-                {filtersOpen && (
-                  <Choices
-                    label="Priority"
-                    values={["", ...priorities]}
-                    value={priority}
-                    onChange={setPriority}
-                  />
-                )}
+          )}
+          <Text style={s.title}>{selected?.name ?? `${tab}.`}</Text>
+          <Text style={s.subtitle}>
+            {selected?.description ??
+              (tab === "Overview"
+                ? `Welcome back, ${user?.fullName.split(" ")[0] || "there"}.`
+                : tab === "Projects"
+                  ? "The committee in your head has talked enough."
+                  : tab === "Tasks"
+                    ? "Big ambitions. Manageable little checkboxes."
+                    : "Make Daymark yours.")}
+          </Text>
+          {notice ? (
+            <Text accessibilityLiveRegion="polite" style={s.subtitle}>
+              {notice}
+            </Text>
+          ) : null}
+          {error ? (
+            <>
+              <Text style={s.error} accessibilityRole="alert">
+                {error}
+              </Text>
+              <Button onPress={load}>Try again</Button>
+            </>
+          ) : null}
+          {tab === "Overview" && (
+            <>
+              <View style={s.wrap}>
+                {[
+                  ["Projects", stats?.totalProjects],
+                  [
+                    "Open tasks",
+                    tasks.filter((t) => t.status !== "Completed").length,
+                  ],
+                  ["Completed", stats?.completedTasks],
+                  ["In progress", stats?.projectsInProgress],
+                ].map(([label, value]) => (
+                  <View
+                    key={String(label)}
+                    style={[
+                      s.metric,
+                      (width < 350 || fontScale > 1.3) && { flexBasis: "100%" },
+                    ]}
+                  >
+                    <Text style={s.small}>{label}</Text>
+                    <Text style={s.metricNumber}>{stats ? value : "..."}</Text>
+                  </View>
+                ))}
+              </View>
+              <View style={s.row}>
+                <Text style={s.itemTitle}>Up next</Text>
+                <Button onPress={() => go("Tasks")}>All tasks</Button>
+              </View>
+              {tasks
+                .filter((t) => t.status !== "Completed")
+                .sort((a, b) => a.due_date.localeCompare(b.due_date))
+                .slice(0, 3)
+                .map((t) => (
+                  <Card key={t.id}>
+                    <Text style={s.eyebrow}>
+                      {t.due_date < localDate()
+                        ? "OVERDUE"
+                        : t.due_date === localDate()
+                          ? "DUE TODAY"
+                          : "COMING UP"}
+                    </Text>
+                    <Text style={s.itemTitle}>{t.name}</Text>
+                    <Text style={s.small}>
+                      {t.projects?.name} · {t.due_date}
+                    </Text>
+                    <Button primary disabled={busy} onPress={() => complete(t)}>
+                      Mark done
+                    </Button>
+                  </Card>
+                ))}
+              {stats && !tasks.some((t) => t.status !== "Completed") && (
+                <Card>
+                  <Text style={s.itemTitle}>A little breathing room.</Text>
+                  <Text style={s.subtitle}>
+                    Your to-do list has nothing on you. Literally.
+                  </Text>
+                </Card>
+              )}
+              <View style={s.wrap}>
                 <Button
                   primary
                   onPress={() =>
                     projects.length ? setEditor({}) : setProjectEditor({})
                   }
                 >
-                  ＋ New task
+                  {projects.length ? "New task" : "Create first project"}
                 </Button>
-              </>
-            )}
-            {!taskView && (
-              <Button primary onPress={() => setProjectEditor({})}>
-                New project
+                <Button onPress={() => go("Projects")}>View projects</Button>
+              </View>
+            </>
+          )}
+          {tab === "Account" && <Account leaveRef={accountLeave} />}
+          {(tab === "Projects" || tab === "Tasks") && (
+            <>
+              <Field
+                label={`Search ${taskView ? "tasks" : "projects"}`}
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Find something…"
+              />
+              <Button onPress={() => setFiltersOpen(!filtersOpen)}>
+                {filtersOpen
+                  ? "Hide filters"
+                  : `Filters${status || priority ? " (active)" : ""}`}
               </Button>
-            )}
-            {selected && (
-              <Card>
-                <Text>{selected.status}</Text>
-                <Button onPress={() => setProjectEditor({ project: selected })}>
-                  Edit project
+              {filtersOpen && (status || priority) && (
+                <Button
+                  onPress={() => {
+                    setStatus("");
+                    setPriority("");
+                  }}
+                >
+                  Clear filters
                 </Button>
-                <Text style={s.small}>
-                  {selected.start_date} to {selected.end_date}
-                </Text>
-                <Text style={s.small}>
-                  Created {selected.created_at.slice(0, 10)}
-                </Text>
-              </Card>
-            )}
-            {taskView
-              ? shownTasks.slice(0, visibleCount).map((t) => (
-                  <Card key={t.id}>
-                    <Text style={s.itemTitle}>{t.name}</Text>
-                    <Text style={s.subtitle}>{t.description}</Text>
-                    <Text style={s.small}>
-                      {t.projects?.name} · Due {t.due_date}
-                    </Text>
-                    <Text style={s.small}>
-                      {t.status} / {t.priority} priority
-                    </Text>
-                    <View style={s.wrap}>
-                      <Button
-                        primary={t.status !== "Completed"}
-                        disabled={busy}
-                        onPress={() => complete(t)}
-                      >
-                        {t.status === "Completed" ? "Reopen task" : "Mark done"}
-                      </Button>
-                      <Button onPress={() => setEditor({ task: t })}>
-                        Edit
-                      </Button>
-                      <Button disabled={busy} onPress={() => remove(t)}>
-                        Delete
-                      </Button>
-                    </View>
-                  </Card>
-                ))
-              : projects
-                  .filter(
+              )}
+              {filtersOpen && (
+                <Choices
+                  label="Status"
+                  values={["", ...(taskView ? taskStatuses : projectStatuses)]}
+                  value={status}
+                  onChange={setStatus}
+                />
+              )}
+              {taskView && (
+                <>
+                  {filtersOpen && (
+                    <Choices
+                      label="Priority"
+                      values={["", ...priorities]}
+                      value={priority}
+                      onChange={setPriority}
+                    />
+                  )}
+                  <Button
+                    primary
+                    onPress={() =>
+                      projects.length ? setEditor({}) : setProjectEditor({})
+                    }
+                  >
+                    ＋ New task
+                  </Button>
+                </>
+              )}
+              {!taskView && (
+                <Button primary onPress={() => setProjectEditor({})}>
+                  New project
+                </Button>
+              )}
+              {selected && (
+                <Card>
+                  <Text>{selected.status}</Text>
+                  <Button
+                    onPress={() => setProjectEditor({ project: selected })}
+                  >
+                    Edit project
+                  </Button>
+                  <Text style={s.small}>
+                    {selected.start_date} to {selected.end_date}
+                  </Text>
+                  <Text style={s.small}>
+                    Created {selected.created_at.slice(0, 10)}
+                  </Text>
+                </Card>
+              )}
+              {taskView
+                ? shownTasks.slice(0, visibleCount).map((t) => (
+                    <Card key={t.id}>
+                      <Text style={s.itemTitle}>{t.name}</Text>
+                      <Text style={s.subtitle}>{t.description}</Text>
+                      <Text style={s.small}>
+                        {t.projects?.name} · Due {t.due_date}
+                      </Text>
+                      <Text style={s.small}>
+                        {t.status} / {t.priority} priority
+                      </Text>
+                      <View style={s.wrap}>
+                        <Button
+                          primary={t.status !== "Completed"}
+                          disabled={busy}
+                          onPress={() => complete(t)}
+                        >
+                          {t.status === "Completed"
+                            ? "Reopen task"
+                            : "Mark done"}
+                        </Button>
+                        <Button onPress={() => setEditor({ task: t })}>
+                          Edit
+                        </Button>
+                        <Button disabled={busy} onPress={() => remove(t)}>
+                          Delete
+                        </Button>
+                      </View>
+                    </Card>
+                  ))
+                : projects
+                    .filter(
+                      (p) =>
+                        p.name.toLowerCase().includes(search.toLowerCase()) &&
+                        (!status || p.status === status),
+                    )
+                    .slice(0, visibleCount)
+                    .map((p) => (
+                      <Card key={p.id}>
+                        <Text style={s.eyebrow}>{p.status.toUpperCase()}</Text>
+                        <Text style={s.itemTitle}>{p.name}</Text>
+                        <Text style={s.subtitle}>{p.description}</Text>
+                        <Text style={s.small}>Due {p.end_date}</Text>
+                        <ProjectProgress
+                          tasks={tasks.filter((t) => t.project_id === p.id)}
+                        />
+                        <Button
+                          onPress={() => {
+                            setSelected(p);
+                            setSearch("");
+                            setStatus("");
+                          }}
+                        >
+                          View project ↗
+                        </Button>
+                      </Card>
+                    ))}
+              {(taskView
+                ? shownTasks.length
+                : projects.filter(
                     (p) =>
                       p.name.toLowerCase().includes(search.toLowerCase()) &&
                       (!status || p.status === status),
-                  )
-                  .slice(0, visibleCount)
-                  .map((p) => (
-                    <Card key={p.id}>
-                      <Text style={s.eyebrow}>{p.status.toUpperCase()}</Text>
-                      <Text style={s.itemTitle}>{p.name}</Text>
-                      <Text style={s.subtitle}>{p.description}</Text>
-                      <Text style={s.small}>Due {p.end_date}</Text>
-                      <ProjectProgress
-                        tasks={tasks.filter((t) => t.project_id === p.id)}
-                      />
-                      <Button
-                        onPress={() => {
-                          setSelected(p);
-                          setSearch("");
-                          setStatus("");
-                        }}
-                      >
-                        View project ↗
-                      </Button>
-                    </Card>
-                  ))}
-            {(taskView
-              ? shownTasks.length
-              : projects.filter(
+                  ).length) > visibleCount && (
+                <Button onPress={() => setVisibleCount((v) => v + 30)}>
+                  Show more
+                </Button>
+              )}
+              {taskView && !shownTasks.length && !refreshing && (
+                <Text style={s.subtitle}>
+                  Your tasks are playing hide-and-seek. Add one or clear a
+                  filter.
+                </Text>
+              )}
+              {!taskView &&
+                !projects.filter(
                   (p) =>
                     p.name.toLowerCase().includes(search.toLowerCase()) &&
                     (!status || p.status === status),
-                ).length) > visibleCount && (
-              <Button onPress={() => setVisibleCount((v) => v + 30)}>
-                Show more
-              </Button>
-            )}
-            {taskView && !shownTasks.length && !refreshing && (
-              <Text style={s.subtitle}>
-                Your tasks are playing hide-and-seek. Add one or clear a filter.
-              </Text>
-            )}
-            {!taskView &&
-              !projects.filter(
-                (p) =>
-                  p.name.toLowerCase().includes(search.toLowerCase()) &&
-                  (!status || p.status === status),
-              ).length && (
-                <Text style={s.subtitle}>
-                  Even our search party found nothing. Create a project or clear
-                  your filters.
-                </Text>
-              )}
-          </>
+                ).length && (
+                  <Text style={s.subtitle}>
+                    Even our search party found nothing. Create a project or
+                    clear your filters.
+                  </Text>
+                )}
+            </>
+          )}
+        </KeyboardScroll>
+        <View
+          style={[
+            s.row,
+            { padding: 8, borderTopWidth: 1, borderTopColor: colors.line },
+          ]}
+        >
+          {["Overview", "Projects", "Tasks", "Account"].map((v) => (
+            <Button compact key={v} primary={tab === v} onPress={() => go(v)}>
+              {v}
+            </Button>
+          ))}
+        </View>
+        {projectEditor && (
+          <ProjectEditor
+            project={projectEditor.project}
+            close={() => setProjectEditor(null)}
+            saved={load}
+          />
         )}
-      </ScrollView>
-      <View
-        style={[
-          s.row,
-          { padding: 8, borderTopWidth: 1, borderTopColor: colors.line },
-        ]}
-      >
-        {["Overview", "Projects", "Tasks", "Account"].map((v) => (
-          <Button compact key={v} primary={tab === v} onPress={() => go(v)}>
-            {v}
-          </Button>
-        ))}
-      </View>
-      {projectEditor && (
-        <ProjectEditor
-          project={projectEditor.project}
-          close={() => setProjectEditor(null)}
-          saved={load}
-        />
-      )}
-      {editor && (
-        <TaskEditor
-          task={editor.task}
-          projects={projects}
-          projectId={selected?.id}
-          close={() => setEditor(null)}
-          saved={load}
-        />
-      )}
+        {editor && (
+          <TaskEditor
+            task={editor.task}
+            projects={projects}
+            projectId={selected?.id}
+            close={() => setEditor(null)}
+            saved={load}
+          />
+        )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -676,6 +715,8 @@ function TaskEditor({
     JSON.stringify({ name, description, status, priority, due, project }) !==
     initial.current;
   async function submit() {
+    if (busy) return;
+    Keyboard.dismiss();
     const parsed = (task ? taskSchema : createTaskSchema).safeParse({
       name,
       description,
@@ -803,6 +844,8 @@ function Account({
     };
   }, [isDirty, busy, leaveRef]);
   async function save() {
+    if (busy) return;
+    Keyboard.dismiss();
     const parsed = registerSchema
       .pick({ fullName: true })
       .safeParse({ fullName: name });

@@ -8,13 +8,26 @@
   Modal,
   ScrollView,
   KeyboardAvoidingView,
+  Keyboard,
+  type ScrollViewProps,
   Platform,
   useWindowDimensions,
   type TextInputProps,
   type ViewStyle,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useState, type ReactNode } from "react";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 export const rem = (value: number) => value * 16;
 export const colors = {
   ink: "#121212",
@@ -78,15 +91,80 @@ export function Button({
     </Pressable>
   );
 }
+const RevealField = createContext<(input: TextInput | null) => void>(() => {});
+/** Bounded scrolling plus focused-field visibility after the keyboard finishes opening. */
+export function KeyboardScroll({
+  children,
+  style,
+  contentContainerStyle,
+  ...props
+}: ScrollViewProps) {
+  const scroll = useRef<ScrollView>(null);
+  const activeInput = useRef<TextInput | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reveal = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      const input = TextInput.State.currentlyFocusedInput();
+      if (input && activeInput.current?.isFocused() && Keyboard.isVisible())
+        scroll.current?.scrollResponderScrollNativeHandleToKeyboard(
+          input,
+          rem(1.25),
+          true,
+        );
+    }, 80);
+  };
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", reveal);
+    return () => {
+      show.remove();
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, []);
+  return (
+    <RevealField.Provider
+      value={(input) => {
+        activeInput.current = input;
+        reveal();
+      }}
+    >
+      <ScrollView
+        ref={scroll}
+        style={[{ flex: 1, minHeight: 0 }, style]}
+        contentContainerStyle={[
+          s.content,
+          { flexGrow: 1, paddingBottom: rem(3) },
+          contentContainerStyle,
+        ]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="none"
+        onLayout={reveal}
+        {...props}
+      >
+        {children}
+      </ScrollView>
+    </RevealField.Provider>
+  );
+}
 export function Field({
   label,
   style,
+  inputRef,
+  onFocus,
   ...props
-}: TextInputProps & { label: string }) {
+}: TextInputProps & { label: string; inputRef?: RefObject<TextInput | null> }) {
+  const reveal = useContext(RevealField);
+  const localRef = useRef<TextInput>(null);
+  const fieldRef = inputRef ?? localRef;
   return (
     <View style={{ gap: rem(0.5) }}>
       <Text style={s.label}>{label}</Text>
       <TextInput
+        ref={fieldRef}
+        onFocus={(event) => {
+          onFocus?.(event);
+          reveal(fieldRef.current);
+        }}
         accessibilityLabel={label}
         placeholderTextColor="#757570"
         selectionColor={colors.coral}
@@ -115,6 +193,7 @@ export function Sheet({
   dirty?: boolean;
   busy?: boolean;
 }) {
+  const insets = useSafeAreaInsets();
   const requestClose = () => {
     if (!busy) confirmDiscard(dirty, close);
   };
@@ -127,6 +206,7 @@ export function Sheet({
     >
       <SafeAreaView style={s.screen}>
         <KeyboardAvoidingView
+          keyboardVerticalOffset={insets.top}
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
@@ -138,13 +218,7 @@ export function Sheet({
               Close
             </Button>
           </View>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            contentContainerStyle={s.content}
-          >
-            {children}
-          </ScrollView>
+          <KeyboardScroll>{children}</KeyboardScroll>
           {footer && <View style={s.sheetFooter}>{footer}</View>}
         </KeyboardAvoidingView>
       </SafeAreaView>

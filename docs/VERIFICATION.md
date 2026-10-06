@@ -64,3 +64,11 @@ Verification: 22 automated tests passed; API, mobile and web typechecks passed; 
 Project and task editors ask before discarding changed fields on web Close, Cancel and Escape, and on mobile Close and Android Back. Unchanged forms close directly; successful saves bypass the prompt. Profile navigation also guards unsaved name changes. Web refresh/tab closing uses the browser's native unsaved-changes warning. Force-closing a mobile app cannot be intercepted.
 
 Browser verification confirmed dirty Cancel/Escape, Keep editing retaining a draft, Discard closing without saving, and unchanged dismissal using isolated fixture data. Mobile bundle and TypeScript checks passed; physical-device confirmation testing remains pending.
+
+### Keyboard and short-screen audit, 6 October 2026
+
+Fixed missing Android keyboard avoidance on the auth screen and added the same bounded layout to the workspace/profile screen. Shared native form scrolling keeps the keyboard open during a drag and reveals the focused input after keyboard/layout changes. Modal editors retain reachable footer actions. Auth adds Next/Done actions, disabled autocorrect on credentials, a password visibility control, and keyboard dismissal on submit. Android standalone configuration uses resize mode; Expo Go behavior still requires device confirmation.
+
+Web dialogs now follow VisualViewport height and offset, with independently scrolling fields and persistent actions. The viewport requests content resizing on supported browsers; phone inputs remain at 1rem to avoid iOS focus zoom. At 390x360 and 320x360, the project dialog measured top 8 / bottom 352, Save remained at bottom 343.2, and document overflow was absent. At 390x360 the calendar stayed between 11.8 and 208.2 and scrolled its 537px content internally. Login at 320x360 had no horizontal overflow, remained vertically scrollable, and the password toggle changed the input type successfully. These are reduced-height browser checks, not physical keyboard emulation. Android and iOS keyboard interaction must still be verified on devices.
+
+All 22 tests, all workspace typechecks, and the production build passed.
