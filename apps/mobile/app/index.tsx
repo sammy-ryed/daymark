@@ -801,6 +801,7 @@ function Account({
         body: JSON.stringify(parsed.data),
       });
       updateProfile(profile);
+      setName(profile.fullName);
       setMessage("Profile saved.");
     } catch (e) {
       setMessage((e as Error).message);
