@@ -106,7 +106,7 @@ npm run build
 npm audit --omit=dev --workspace @project/web --workspace @project/api
 ```
 
-GitHub Actions checks web/API changes on pushes and pull requests. Vercel performs its own production build. On 6 October 2026, all 20 tests passed, TypeScript passed across web/API/mobile, the deployment was ready, and the web/API production audit reported zero vulnerabilities. The Expo tree still has upstream advisories. See [verification details and limits](docs/VERIFICATION.md).
+GitHub Actions checks web/API changes on pushes and pull requests. Vercel performs its own production build. On 6 October 2026, all 22 tests passed, TypeScript passed across web/API/mobile, the deployment was ready, and the web/API production audit reported zero vulnerabilities. The Expo tree still has upstream advisories. See [verification details and limits](docs/VERIFICATION.md).
 
 ## API reference
 
