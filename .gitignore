@@ -1,0 +1,16 @@
+node_modules/
+.next/
+.expo/
+dist/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+supabase/.temp/
+supabase/.branches/
+coverage/
+tmp/
+.agents/
+.codex/
+*.zip
+*.log

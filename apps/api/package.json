@@ -1,0 +1,28 @@
+{
+  "name": "@project/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/server.ts",
+    "build": "tsc --noEmit && esbuild src/server.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server.js",
+    "start": "node --env-file-if-exists=.env dist/server.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@project/contracts": "1.0.0",
+    "@supabase/supabase-js": "2.117.2",
+    "express": "5.2.1",
+    "cookie-parser": "1.4.7",
+    "cors": "2.8.5",
+    "helmet": "8.1.0",
+    "express-rate-limit": "8.7.1",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.3",
+    "@types/cookie-parser": "1.4.9",
+    "@types/cors": "2.8.19",
+    "esbuild": "0.25.10"
+  }
+}

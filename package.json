@@ -1,0 +1,29 @@
+{
+  "name": "project-management-system",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c yellow,cyan \"npm run dev -w @project/api\" \"npm run dev -w @project/web\"",
+    "mobile": "npm run start -w @project/mobile",
+    "build": "npm run build -w @project/api && npm run build -w @project/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "db:test": "tsx scripts/verify-supabase.ts"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "tsx": "4.20.6",
+    "concurrently": "9.2.4",
+    "vitest": "3.2.7",
+    "@types/node": "22.18.6",
+    "supabase": "2.119.0",
+    "prettier": "3.6.2"
+  },
+  "overrides": {
+    "expo-constants": "57.0.21",
+    "expo-linking": "57.0.12"
+  }
+}

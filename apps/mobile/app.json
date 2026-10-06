@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Daymark",
+    "slug": "daymark",
+    "scheme": "daymark",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "plugins": ["expo-router", "expo-secure-store"],
+    "android": {
+      "package": "com.daymark.app"
+    }
+  }
+}
